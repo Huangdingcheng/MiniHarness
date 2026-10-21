@@ -55,7 +55,7 @@ export type AgentEvent =
   | {
       type: "run_finished";
       timestamp: string;
-      status: "completed" | "max_steps";
+      status: "completed" | "max_steps" | "failed";
       steps: number;
     };
 
@@ -134,126 +134,144 @@ export class Agent {
       taskLength: task.length,
     });
 
-    for (
-      let step = 1;
-      step <= this.maxSteps;
-      step += 1
-    ) {
-      const definitions = this.registry.getDefinitions();
+    let currentStep = 0;
 
-      this.emit({
-        type: "model_request",
-        timestamp: new Date().toISOString(),
-        step,
-        messageCount: messages.length,
-        toolCount: definitions.length,
-      });
+    try {
+      for (
+        let step = 1;
+        step <= this.maxSteps;
+        step += 1
+      ) {
 
-      let assistant: AssistantMessage;
+        // 必须在调用模型之前更新
+        currentStep = step;
 
-      try {
-        assistant = await this.provider.complete(
-          messages,
-          definitions,
-        );
-      } catch (error) {
-        const reason =
-          error instanceof Error
-            ? error.message
-            : String(error);
+        const definitions = this.registry.getDefinitions();
 
         this.emit({
-          type: "model_error",
+          type: "model_request",
           timestamp: new Date().toISOString(),
           step,
-          message: reason,
+          messageCount: messages.length,
+          toolCount: definitions.length,
         });
 
-        throw error;
-      }
-
-      messages.push(assistant);
-
-      const toolCalls = assistant.tool_calls ?? [];
-
-      this.emit({
-        type: "model_response",
-        timestamp: new Date().toISOString(),
-        step,
-        hasText: Boolean(assistant.content),
-        toolCalls: toolCalls.map((call) => ({
-          id: call.id,
-          name: call.function.name,
-        })),
-      });
-
-      // No tool calls means the model has finished.
-      if (toolCalls.length === 0) {
-        const result: AgentRunResult = {
-          status: "completed",
-          finalMessage: assistant.content ?? "",
-          steps: step,
-          messages,
-        };
-
-        this.emit({
-          type: "run_finished",
-          timestamp: new Date().toISOString(),
-          status: result.status,
-          steps: result.steps,
-        });
-
-        return result;
-      }
-
-      for (const call of toolCalls) {
-        const startedAt = Date.now();
-
-        this.emit({
-          type: "tool_started",
-          timestamp: new Date().toISOString(),
-          step,
-          callId: call.id,
-          toolName: call.function.name,
-        });
-
-        let content: string;
-        let ok = true;
+        let assistant: AssistantMessage;
 
         try {
-          content = await this.registry.execute(
-            call.function.name,
-            call.function.arguments,
+          assistant = await this.provider.complete(
+            messages,
+            definitions,
           );
         } catch (error) {
-          ok = false;
-
           const reason =
             error instanceof Error
               ? error.message
               : String(error);
 
-          content = `Tool execution failed: ${reason}`;
+          this.emit({
+            type: "model_error",
+            timestamp: new Date().toISOString(),
+            step,
+            message: reason,
+          });
+
+          throw error;
         }
 
+        messages.push(assistant);
+
+        const toolCalls = assistant.tool_calls ?? [];
+
         this.emit({
-          type: "tool_finished",
+          type: "model_response",
           timestamp: new Date().toISOString(),
           step,
-          callId: call.id,
-          toolName: call.function.name,
-          ok,
-          resultLength: content.length,
-          durationMs: Date.now() - startedAt,
+          hasText: Boolean(assistant.content),
+          toolCalls: toolCalls.map((call) => ({
+            id: call.id,
+            name: call.function.name,
+          })),
         });
 
-        messages.push({
-          role: "tool",
-          tool_call_id: call.id,
-          content,
-        });
+        // No tool calls means the model has finished.
+        if (toolCalls.length === 0) {
+          const result: AgentRunResult = {
+            status: "completed",
+            finalMessage: assistant.content ?? "",
+            steps: step,
+            messages,
+          };
+
+          this.emit({
+            type: "run_finished",
+            timestamp: new Date().toISOString(),
+            status: result.status,
+            steps: result.steps,
+          });
+
+          return result;
+        }
+
+        for (const call of toolCalls) {
+          const startedAt = Date.now();
+
+          this.emit({
+            type: "tool_started",
+            timestamp: new Date().toISOString(),
+            step,
+            callId: call.id,
+            toolName: call.function.name,
+          });
+
+          let content: string;
+          let ok = true;
+
+          try {
+            content = await this.registry.execute(
+              call.function.name,
+              call.function.arguments,
+            );
+          } catch (error) {
+            ok = false;
+
+            const reason =
+              error instanceof Error
+                ? error.message
+                : String(error);
+
+            content = `Tool execution failed: ${reason}`;
+          }
+
+          this.emit({
+            type: "tool_finished",
+            timestamp: new Date().toISOString(),
+            step,
+            callId: call.id,
+            toolName: call.function.name,
+            ok,
+            resultLength: content.length,
+            durationMs: Date.now() - startedAt,
+          });
+
+          messages.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content,
+          });
+        }
       }
+    } catch (error) {
+      this.emit({
+        type: "run_finished",
+        timestamp: new Date().toISOString(),
+        status: "failed",
+        steps: currentStep,
+      });
+
+      throw error;
     }
+
 
     const result: AgentRunResult = {
       status: "max_steps",

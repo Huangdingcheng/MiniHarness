@@ -241,5 +241,44 @@ describe("Agent", () => {
       expect(toolFinished.resultLength).toBe(5);
     }
   });
+  
+  it("emits run_finished when the model request fails", async () => {
+    const events: AgentEvent[] = [];
+
+    const failingProvider: ModelProvider = {
+      async complete() {
+        throw new Error("simulated model failure");
+      },
+    };
+
+    const agent = new Agent(
+      failingProvider,
+      new ToolRegistry(),
+      {
+        maxSteps: 3,
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    await expect(
+      agent.run("Test a failing model request."),
+    ).rejects.toThrow("simulated model failure");
+
+    expect(events.map((event) => event.type)).toEqual([
+      "run_started",
+      "model_request",
+      "model_error",
+      "run_finished",
+    ]);
+
+    const finalEvent = events[events.length - 1];
+
+    expect(finalEvent?.type).toBe("run_finished");
+
+    if (finalEvent?.type === "run_finished") {
+      expect(finalEvent.status).toBe("failed");
+      expect(finalEvent.steps).toBe(1);
+    }
+  });
 
 });

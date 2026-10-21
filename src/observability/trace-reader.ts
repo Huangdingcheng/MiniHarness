@@ -101,7 +101,7 @@ export type TraceSummary = {
   modelErrors: number;
   toolCalls: number;
   toolFailures: number;
-  status: "completed" | "max_steps" | "incomplete";
+  status: "completed" | "max_steps" | "failed" | "incomplete";
   durationMs: number | null;
   tools: Record<string, ToolStats>;
 };
