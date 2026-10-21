@@ -324,7 +324,7 @@ repositories.
 ## Development notes
 
 A longer visual document can live at
-[`docs/development-history.html`](docs/miniharness_development_history.html). It
+[`docs/miniharness_development_history.html`](docs/miniharness_development_history.html). It
 describes the design decisions, module boundaries, debugging lessons,
 workspace lifecycle, baseline and diff logic, writeback flow, current
 limitations, and possible next steps.
