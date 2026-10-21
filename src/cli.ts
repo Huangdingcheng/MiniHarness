@@ -1,3 +1,11 @@
+import {
+  inspectWorkspaceWriteback,
+} from "./runtime/writeback-check.js";
+
+import {
+  applyWorkspaceChanges,
+} from "./runtime/writeback.js";
+
 import os from "node:os";
 import path from "node:path";
 import { realpath } from "node:fs/promises";
@@ -233,11 +241,157 @@ async function showWorkspaceDiff(
   console.log(report);
 }
 
+
+async function applyWorkspaceInteractively(
+  workspaceArgument: string,
+): Promise<void> {
+  const sandboxBase = await realpath(
+    path.join(os.tmpdir(), "miniharness-sandboxes"),
+  );
+
+  const sourceRoot = await realpath(process.cwd());
+  const workspaceRoot = await realpath(workspaceArgument);
+
+  // 只允许操作 MiniHarness 创建的直接子工作区。
+  const relative = path.relative(
+    sandboxBase,
+    workspaceRoot,
+  );
+
+  const validSandbox =
+    relative !== "" &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative) &&
+    !relative.includes(path.sep) &&
+    path.basename(workspaceRoot).startsWith("run-");
+
+  if (!validSandbox) {
+    throw new Error(
+      "Invalid MiniHarness sandbox path.",
+    );
+  }
+
+  const changes = await getWorkspaceChanges(
+    sourceRoot,
+    workspaceRoot,
+  );
+
+  if (changes.length === 0) {
+    console.log("No workspace changes to apply.");
+    return;
+  }
+
+  // 展示实际差异，而不只是文件名。
+  console.log("\n=== Changes for Review ===");
+  console.log(
+    await renderWorkspaceChanges(
+      sourceRoot,
+      workspaceRoot,
+      changes,
+    ),
+  );
+
+  // 基线、目标状态和路径安全检查。
+  const checks = await inspectWorkspaceWriteback(
+    sourceRoot,
+    workspaceRoot,
+  );
+
+  const checkMap = new Map(
+    checks.map((check) => [check.path, check]),
+  );
+
+  console.log("\n=== Preflight Results ===");
+
+  for (const change of changes) {
+    const check = checkMap.get(change.path);
+
+    console.log(
+      `[${check?.status ?? "unsafe"}] ${change.kind}: ${change.path}`,
+    );
+
+    if (check) {
+      console.log(`  ${check.reason}`);
+    }
+  }
+
+  const approvedPaths: string[] = [];
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    for (const change of changes) {
+      const check = checkMap.get(change.path);
+
+      if (check?.status !== "ready") {
+        console.log(
+          `Skipped: ${change.path} (not ready)`,
+        );
+        continue;
+      }
+
+      const answer = (
+        await rl.question(
+          `\nApply ${change.kind} "${change.path}"? [y/N] `,
+        )
+      ).trim().toLowerCase();
+
+      if (answer === "y") {
+        approvedPaths.push(change.path);
+      } else {
+        console.log(`Rejected: ${change.path}`);
+      }
+    }
+  } finally {
+    rl.close();
+  }
+
+  if (approvedPaths.length === 0) {
+    console.log("\nNo changes approved.");
+    return;
+  }
+
+  console.log(
+    `\nApplying ${approvedPaths.length} approved change(s)...`,
+  );
+
+  const results = await applyWorkspaceChanges(
+    sourceRoot,
+    workspaceRoot,
+    approvedPaths,
+  );
+
+  for (const result of results) {
+    console.log(
+      `[${result.status.toUpperCase()}] ${result.kind}: ${result.path}`,
+    );
+  }
+
+  console.log("\nWriteback completed.");
+}
+
 async function main(): Promise<void> {
   const cliArgs = process.argv
     .slice(2)
     .filter((arg) => arg !== "--");
 
+  if (cliArgs[0] === "--apply") {
+    const workspaceArgument = cliArgs[1];
+
+    if (!workspaceArgument || cliArgs.length !== 2) {
+      throw new Error(
+        'Usage: pnpm dev -- --apply "<workspace-path>"',
+      );
+    }
+
+    await applyWorkspaceInteractively(workspaceArgument);
+    return;
+  }
+  
   // 差异查看模式：不创建新的沙箱，也不调用模型。
   if (cliArgs[0] === "--diff") {
     const workspaceArgument = cliArgs[1];
