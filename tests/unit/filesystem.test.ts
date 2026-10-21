@@ -142,6 +142,123 @@ it("does not expose secrets from blocked files", async () => {
 });
 
 
+it("creates a new file in the workspace", async () => {
+  const registry = await setup();
+  const content = 'export const greeting = "hello";\n';
+
+  const result = await registry.execute(
+    "write_file",
+    JSON.stringify({
+      path: "src/new-file.ts",
+      content,
+    }),
+  );
+
+  expect(result).toContain(
+    "File created successfully: src/new-file.ts",
+  );
+
+  await expect(
+    readFile(
+      path.join(root, "src", "new-file.ts"),
+      "utf8",
+    ),
+  ).resolves.toBe(content);
+});
+
+it("never overwrites an existing file with write_file", async () => {
+  const registry = await setup();
+  const filePath = path.join(root, "src", "example.ts");
+
+  await expect(
+    registry.execute(
+      "write_file",
+      JSON.stringify({
+        path: "src/example.ts",
+        content: "replacement content\n",
+      }),
+    ),
+  ).rejects.toThrow(
+    "File already exists; write_file never overwrites existing files.",
+  );
+
+  await expect(
+    readFile(filePath, "utf8"),
+  ).resolves.toBe("export const answer = 42;\n");
+});
+
+it("blocks creating files outside the workspace or in blocked paths", async () => {
+  const registry = await setup();
+
+  await expect(
+    registry.execute(
+      "write_file",
+      JSON.stringify({
+        path: "../outside.ts",
+        content: "unsafe",
+      }),
+    ),
+  ).rejects.toThrow("Path is outside the workspace.");
+
+  await expect(
+    registry.execute(
+      "write_file",
+      JSON.stringify({
+        path: path.join(root, "src", "absolute.ts"),
+        content: "unsafe",
+      }),
+    ),
+  ).rejects.toThrow("path must be workspace-relative.");
+
+  await expect(
+    registry.execute(
+      "write_file",
+      JSON.stringify({
+        path: ".env.local",
+        content: "LLM_API_KEY=unsafe",
+      }),
+    ),
+  ).rejects.toThrow("Access to this path is blocked.");
+});
+
+it("requires the parent directory to exist", async () => {
+  const registry = await setup();
+
+  await expect(
+    registry.execute(
+      "write_file",
+      JSON.stringify({
+        path: "missing-dir/new-file.ts",
+        content: "export {};\n",
+      }),
+    ),
+  ).rejects.toThrow("Parent directory does not exist.");
+});
+
+it("rejects binary content and oversized files", async () => {
+  const registry = await setup();
+
+  await expect(
+    registry.execute(
+      "write_file",
+      JSON.stringify({
+        path: "src/binary.txt",
+        content: "before\0after",
+      }),
+    ),
+  ).rejects.toThrow("Binary content cannot be written by this tool.");
+
+  await expect(
+    registry.execute(
+      "write_file",
+      JSON.stringify({
+        path: "src/large.txt",
+        content: "x".repeat(100_001),
+      }),
+    ),
+  ).rejects.toThrow("File content exceeds the 100000-byte limit.");
+});
+
 it("replaces exactly one occurrence in a file", async () => {
   const registry = await setup();
 

@@ -13,6 +13,7 @@ const READ_ONLY_TOOLS = new Set([
 
 const APPROVAL_REQUIRED_TOOLS = new Set([
   "edit_file",
+  "write_file",
   "run_check",
 ]);
 

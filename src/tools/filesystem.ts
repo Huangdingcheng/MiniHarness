@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  open,
   readdir,
   readFile,
   realpath,
@@ -17,6 +18,7 @@ import type {
 } from "../model/types.js";
 
 import { ToolRegistry } from "./registry.js";
+import { shouldExcludeWorkspacePath } from "../runtime/workspace.js";
 
 const MAX_FILE_BYTES = 100_000;
 const MAX_DIRECTORY_ENTRIES = 200;
@@ -242,6 +244,33 @@ const editFileDefinition: ToolDefinition = {
         },
       },
       required: ["path", "old_text", "new_text"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const writeFileDefinition: ToolDefinition = {
+  type: "function",
+  function: {
+    name: "write_file",
+    description:
+      "Create a new UTF-8 text file inside the workspace. " +
+      "The parent directory must already exist. " +
+      "This tool never overwrites an existing file; " +
+      "use edit_file to modify an existing file.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Workspace-relative path for the new file.",
+        },
+        content: {
+          type: "string",
+          description: "Complete UTF-8 text content for the new file.",
+        },
+      },
+      required: ["path", "content"],
       additionalProperties: false,
     },
   },
@@ -683,4 +712,164 @@ export async function registerFileSystemTools(
       ].join("\n");
     },
   );
+
+  registry.register(
+    writeFileDefinition,
+    async (args) => {
+      const rawPath = args.path;
+      const content = args.content;
+
+      if (
+        typeof rawPath !== "string" ||
+        rawPath.trim() === ""
+      ) {
+        throw new Error("path must be a non-empty string.");
+      }
+
+      if (path.isAbsolute(rawPath)) {
+        throw new Error("path must be workspace-relative.");
+      }
+
+      if (typeof content !== "string") {
+        throw new Error("content must be a string.");
+      }
+
+      if (Buffer.byteLength(content, "utf8") > MAX_FILE_BYTES) {
+        throw new Error(
+          `File content exceeds the ${MAX_FILE_BYTES}-byte limit.`,
+        );
+      }
+
+      if (content.includes("\0")) {
+        throw new Error(
+          "Binary content cannot be written by this tool.",
+        );
+      }
+
+      // Validate the lexical path before resolving any parent symlinks.
+      const candidate = path.resolve(root, rawPath);
+
+      if (!isWithinRoot(root, candidate)) {
+        throw new Error("Path is outside the workspace.");
+      }
+
+      const relativeCandidate = path.relative(root, candidate);
+
+      if (
+        relativeCandidate === "" ||
+        isBlockedPath(relativeCandidate) ||
+        shouldExcludeWorkspacePath(relativeCandidate)
+      ) {
+        throw new Error(
+          relativeCandidate === ""
+            ? "path must point to a file inside the workspace."
+            : "Access to this path is blocked.",
+        );
+      }
+
+      // Resolve the existing parent directory. Requiring it to exist avoids
+      // recursively creating directories through an untrusted path.
+      let parent: string;
+
+      try {
+        parent = await realpath(path.dirname(candidate));
+      } catch (error) {
+        const code =
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          typeof error.code === "string"
+            ? error.code
+            : undefined;
+
+        if (code === "ENOENT" || code === "ENOTDIR") {
+          throw new Error(
+            "Parent directory does not exist. Create or choose an existing directory first.",
+          );
+        }
+
+        throw error;
+      }
+
+      if (!isWithinRoot(root, parent)) {
+        throw new Error("Path is outside the workspace.");
+      }
+
+      const relativeParent = path.relative(root, parent);
+
+      if (
+        isBlockedPath(relativeParent) ||
+        shouldExcludeWorkspacePath(relativeParent)
+      ) {
+        throw new Error("Access to this path is blocked.");
+      }
+
+      const parentInfo = await stat(parent);
+
+      if (!parentInfo.isDirectory()) {
+        throw new Error("Parent path is not a directory.");
+      }
+
+      // Use the canonical parent path and exclusive creation ("wx") so an
+      // existing file or symlink can never be overwritten.
+      const target = path.join(parent, path.basename(candidate));
+      const relativeTarget = path.relative(root, target);
+
+      if (
+        !isWithinRoot(root, target) ||
+        isBlockedPath(relativeTarget) ||
+        shouldExcludeWorkspacePath(relativeTarget)
+      ) {
+        throw new Error("Access to this path is blocked.");
+      }
+
+      let created = false;
+
+      try {
+        const handle = await open(target, "wx", 0o666);
+        created = true;
+
+        try {
+          await handle.writeFile(content, "utf8");
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+      } catch (error) {
+        if (created) {
+          await unlink(target).catch(() => undefined);
+        }
+
+        const code =
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          typeof error.code === "string"
+            ? error.code
+            : undefined;
+
+        if (code === "EEXIST") {
+          throw new Error(
+            "File already exists; write_file never overwrites existing files.",
+          );
+        }
+
+        const reason =
+          error instanceof Error ? error.message : String(error);
+
+        throw new Error(`Failed to create file: ${reason}`);
+      }
+
+        const relativePath = path
+          .relative(root, target)
+          .split(path.sep)
+          .join("/");
+
+        return [
+          `File created successfully: ${relativePath}`,
+          `Bytes written: ${Buffer.byteLength(content, "utf8")}`,
+        ].join("\n");
+    },
+  );
+
 }

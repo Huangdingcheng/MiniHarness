@@ -154,6 +154,11 @@ async function authorizeToolCall(
       `Old text: ${previewValue(args.old_text)}`,
       `New text: ${previewValue(args.new_text)}`,
     ].join("\n");
+  } else if (toolName === "write_file") {
+    summary = [
+      `Path: ${previewValue(args.path)}`,
+      `Content: ${previewValue(args.content)}`,
+    ].join("\n");
   } else if (toolName === "run_check") {
     summary = `Check: ${previewValue(args.check)}`;
   }
@@ -441,7 +446,7 @@ async function main(): Promise<void> {
     throw error;
   }
 
-  // Register our own read-only filesystem tools.
+  // Register filesystem tools scoped to the temporary workspace.
   await registerFileSystemTools(
     registry,
     workspaceRoot,
@@ -493,7 +498,9 @@ async function main(): Promise<void> {
       "Use workspace-relative paths only.",
       "Never claim to have read a file unless a tool returned its contents.",
       "Only modify files when the user explicitly requests changes. " +
-      "Before editing, read the target file and use edit_file with exact text. " +
+      "To modify an existing file, read it first and use edit_file with exact text. " +
+      "To create a new file, use write_file with the complete content; " +
+      "write_file never overwrites an existing file. " +
       "Never modify files for read-only questions. " +
       "You may use run_check to validate code changes. " +
       "Use typecheck for TypeScript errors and test for automated tests. " +

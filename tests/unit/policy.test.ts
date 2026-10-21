@@ -25,6 +25,10 @@ describe("ToolPolicy", () => {
     ).toBe("ask");
 
     expect(
+      getToolPolicyDecision("write_file"),
+    ).toBe("ask");
+
+    expect(
       getToolPolicyDecision("run_check"),
     ).toBe("ask");
   });
