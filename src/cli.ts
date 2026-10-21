@@ -7,6 +7,7 @@ import { ToolRegistry } from "./tools/registry.js";
 import {
   registerFileSystemTools,
 } from "./tools/filesystem.js";
+import { registerCheckTool } from "./tools/check.js";
 
 async function main(): Promise<void> {
   const apiKey = process.env.LLM_API_KEY?.trim();
@@ -29,6 +30,11 @@ async function main(): Promise<void> {
     registry,
     workspaceRoot,
   );
+
+  await registerCheckTool(
+  registry,
+  workspaceRoot,
+);
 
   // Keep echo as a small diagnostic tool.
   const echoDefinition: ToolDefinition = {
@@ -70,7 +76,13 @@ async function main(): Promise<void> {
       "Use read_file to inspect source code before explaining it.",
       "Use workspace-relative paths only.",
       "Never claim to have read a file unless a tool returned its contents.",
-      "Do not modify files or execute shell commands.",
+      "Only modify files when the user explicitly requests changes. " +
+      "Before editing, read the target file and use edit_file with exact text. " +
+      "Never modify files for read-only questions. " +
+      "You may use run_check to validate code changes. " +
+      "Use typecheck for TypeScript errors and test for automated tests. " +
+      "Never claim a check passed unless its actual output confirms success. " +
+      "Do not attempt arbitrary shell commands.",
       "Give a concise, evidence-based answer based on actual tool results.",
     ].join(" "),
   });
