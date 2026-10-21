@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>MiniHarness｜从零搭建 Agent Harness 的完整开发历程</title>
+<style>
+:root{--bg:#f7f7f8;--paper:#fff;--ink:#202123;--muted:#6b7280;--line:#e5e7eb;--soft:#f3f4f6;--green:#10a37f;--gd:#087f63;--gs:#e7f7f1;--blue:#2563eb;--bs:#eff6ff;--amber:#a16207;--as:#fffbeb;--red:#b91c1c;--rs:#fef2f2;--purple:#6d28d9;--ps:#f5f3ff;--shadow:0 8px 30px rgba(15,23,42,.045);--max:1240px}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.75 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+a{color:var(--gd);text-decoration:none}a:hover{text-decoration:underline}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.topbar-inner{max-width:var(--max);margin:auto;padding:11px 24px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em}.brand-mark{width:30px;height:30px;border-radius:10px;background:var(--green);display:grid;place-items:center;color:white}
+.actions{display:flex;gap:8px;align-items:center}.btn,.search{border:1px solid var(--line);border-radius:999px;padding:7px 12px;background:#fff;color:var(--ink);font-size:12px}.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}.search{width:min(250px,28vw);outline:none}.search:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gs)}
+.shell{max-width:var(--max);margin:auto;padding:30px 24px 80px;display:grid;grid-template-columns:245px minmax(0,1fr);gap:28px}
+.sidebar{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 92px);overflow:auto;padding:12px 8px 12px 0}.side-label{font-size:10px;letter-spacing:.14em;color:#9ca3af;font-weight:800;padding:0 12px;margin:7px 0}
+.toc{list-style:none;padding:0;margin:0}.toc a{display:block;padding:7px 11px;border-radius:9px;font-size:12px;line-height:1.4;color:#52525b}.toc a:hover{background:#eceef0;color:var(--ink);text-decoration:none}
+.main{min-width:0}.hero,.section{background:var(--paper);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow)}
+.hero{padding:34px 36px;position:relative;overflow:hidden}.hero:after{content:"";position:absolute;width:330px;height:330px;border-radius:50%;right:-120px;top:-150px;background:radial-gradient(circle,rgba(16,163,127,.14),transparent 70%);pointer-events:none}
+.eyebrow{font-size:11px;letter-spacing:.13em;font-weight:850;color:var(--gd)}h1{font-size:clamp(30px,4vw,50px);line-height:1.12;letter-spacing:-.045em;margin:16px 0;max-width:900px}.hero p{font-size:17px;color:#52525b;max-width:870px}
+.tags{display:flex;gap:7px;flex-wrap:wrap}.tag,.pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 9px;font-size:11px;border:1px solid var(--line);background:#fff;color:#52525b}.pill{font-weight:800;border:0;background:var(--soft)}.pill.green{background:var(--gs);color:var(--gd)}.pill.blue{background:var(--bs);color:var(--blue)}.pill.amber{background:var(--as);color:var(--amber)}.pill.red{background:var(--rs);color:var(--red)}.pill.purple{background:var(--ps);color:var(--purple)}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:16px 0 28px}.metric{border:1px solid var(--line);border-radius:15px;background:#fff;padding:15px}.metric strong{font-size:25px;letter-spacing:-.04em;display:block;line-height:1.15}.metric span{font-size:11px;color:var(--muted);display:block;margin-top:7px}
+.section{margin-top:24px;padding:28px 30px}.head{display:flex;gap:13px;margin-bottom:17px;align-items:flex-start}.num{width:35px;height:35px;flex:none;border-radius:11px;background:var(--gs);color:var(--gd);display:grid;place-items:center;font-size:12px;font-weight:850}h2{font-size:25px;line-height:1.25;letter-spacing:-.035em;margin:0 0 6px}h3{font-size:18px;line-height:1.35;letter-spacing:-.02em;margin:24px 0 9px}h4{font-size:15px;margin:17px 0 7px}p{margin:10px 0}.muted,.small{color:var(--muted)}.small{font-size:12px}.lead{font-size:17px;color:#4b5563}
+.callout{padding:14px 16px;border:1px solid var(--line);border-radius:13px;background:#fafafa;margin:15px 0}.callout strong{display:block;margin-bottom:3px}.callout.green{background:var(--gs);border-color:#b9ead8}.callout.amber{background:var(--as);border-color:#f5d58a}.callout.red{background:var(--rs);border-color:#fecaca}.callout.blue{background:var(--bs);border-color:#bfdbfe}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.card{border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}.card h3,.card h4{margin-top:8px}.card p:last-child{margin-bottom:0}
+table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px;margin:13px 0}th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}th{background:#f8fafc;color:#52525b;font-size:11px;font-weight:850}tr:last-child td{border-bottom:0}td code,p code,li code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:1px 4px;font-size:.88em}
+pre{position:relative;margin:13px 0 17px;padding:17px;background:#111827;color:#e5e7eb;border-radius:13px;overflow:auto;white-space:pre;font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}pre code{font:inherit;color:inherit}.copy{position:absolute;right:8px;top:8px;background:#1f2937;color:#d1d5db;border:1px solid #4b5563;border-radius:7px;padding:4px 7px;font-size:10px}
+.diagram{border:1px solid var(--line);border-radius:15px;background:linear-gradient(#fff,#fafafa);padding:10px;margin:15px 0;overflow:hidden}.diagram svg{width:100%;height:auto;display:block}figcaption{font-size:11px;color:var(--muted);margin:8px 4px 2px}
+.tree{font:12px/1.8 ui-monospace,monospace;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;white-space:pre}
+.timeline{position:relative;padding-left:24px;margin:17px 0}.timeline:before{content:"";position:absolute;left:7px;top:7px;bottom:10px;width:2px;background:#d1d5db}.titem{position:relative;padding:0 0 22px 17px}.titem:last-child{padding-bottom:0}.titem:before{content:"";position:absolute;left:-22px;top:5px;width:11px;height:11px;background:var(--green);border:3px solid white;border-radius:50%;box-shadow:0 0 0 1px #b9ead8}.when{font-size:10px;color:var(--gd);letter-spacing:.1em;font-weight:850}.titem h3{margin:3px 0 5px;font-size:16px}.titem p{margin:4px 0;color:#52525b}
+.chat{display:flex;flex-direction:column;gap:12px;margin:16px 0}.bubble{max-width:94%;border:1px solid var(--line);border-radius:15px;padding:13px 15px;background:#fff}.bubble.user{align-self:flex-end;background:#f0fdf4;border-color:#d1fae5;border-bottom-right-radius:5px}.bubble.assistant{align-self:flex-start;border-bottom-left-radius:5px}.speaker{font-size:10px;color:var(--muted);font-weight:850;letter-spacing:.07em;margin-bottom:4px}
+.checklist{list-style:none;padding:0}.checklist li{padding:5px 0 5px 26px;position:relative}.checklist li:before{content:"✓";position:absolute;left:0;top:7px;width:17px;height:17px;display:grid;place-items:center;border-radius:5px;background:var(--gs);color:var(--gd);font-size:11px;font-weight:900}.checklist.pending li:before{content:"○";background:var(--soft);color:var(--muted)}
+.searchable.hide{display:none!important}.toc a.hide{display:none!important}.footer{text-align:center;color:#9ca3af;font-size:11px;padding:26px 4px}
+@media(max-width:960px){.shell{grid-template-columns:1fr}.sidebar{position:relative;top:auto;max-height:none;border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px}.toc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.shell{padding:14px 10px 50px}.hero,.section{padding:21px 16px;border-radius:17px}.topbar-inner{padding:9px 10px}.search{width:115px}.grid2,.grid3{grid-template-columns:1fr}.toc{grid-template-columns:1fr}h2{font-size:22px}.actions .btn:not(.primary){display:none}.bubble{max-width:100%}}
+@media print{body{background:white;font-size:10pt}.topbar,.sidebar,.actions,.copy{display:none!important}.shell{display:block;max-width:none;padding:0}.hero,.section,.metric{box-shadow:none;break-inside:avoid}.section{margin-top:14px;padding:18px}.hero{padding:22px}pre{white-space:pre-wrap;word-break:break-word;background:#f3f4f6;color:#111827;border:1px solid #ddd}.diagram{break-inside:avoid}a{color:inherit;text-decoration:none}}
+</style></head><body>
+<header class="topbar"><div class="topbar-inner"><div class="brand"><span class="brand-mark">M</span><span>MiniHarness / Engineering Journal</span></div><div class="actions"><input id="search" class="search" type="search" placeholder="搜索文档…"><button class="btn" onclick="window.print()">打印 / PDF</button><button class="btn primary" onclick="toggleAll()">展开 / 收起细节</button></div></div></header>
+<div class="shell"><aside class="sidebar"><div class="side-label">DOCUMENT NAVIGATION</div><ul class="toc">
+<li><a href="#overview">00 · 阅读说明</a></li><li><a href="#snapshot">01 · 项目快照</a></li><li><a href="#timeline">02 · 开发历程</a></li><li><a href="#architecture">03 · 总体架构</a></li><li><a href="#loop">04 · Agent Loop</a></li><li><a href="#provider">05 · 模型接入</a></li><li><a href="#tools">06 · Tools & Policy</a></li><li><a href="#runtime">07 · Runtime</a></li><li><a href="#trace">08 · Observability</a></li><li><a href="#workspace">09 · Workspace</a></li><li><a href="#diff">10 · Diff & Baseline</a></li><li><a href="#writeback">11 · Writeback</a></li><li><a href="#cli">12 · CLI 主流程</a></li><li><a href="#memory">13 · Agent Memory</a></li><li><a href="#tests">14 · 测试体系</a></li><li><a href="#lessons">15 · 工程问题复盘</a></li><li><a href="#security">16 · 安全边界</a></li><li><a href="#gaps">17 · 完成 / 未完成</a></li><li><a href="#commands">18 · 命令手册</a></li><li><a href="#next">19 · 下一阶段建议</a></li><li><a href="#glossary">20 · 术语表</a></li></ul></aside><main class="main">
+<section class="hero"><div class="eyebrow">● SOURCE-BASED RECONSTRUCTION · 2026</div><h1>从零搭建 Agent Harness：<br>一份完整的工程开发历程</h1><p>以 <strong>MiniHarness / agent-hareness</strong> 的实际源码为主线，结合开发对话中的决策、报错和验收过程，反向还原一个可运行的 Coding Agent 是怎样从模型 API、Agent Loop，一步步长成带有工具治理、运行时控制、沙箱工作区、差异审查与安全回写的工程系统。</p><div class="tags"><span class="tag">TypeScript</span><span class="tag">Node.js</span><span class="tag">pnpm</span><span class="tag">Vitest</span><span class="tag">OpenAI-compatible API</span><span class="tag">CLI-first</span><span class="tag">Local workspace</span></div></section>
+<div class="metrics"><div class="metric"><strong>6</strong><span>主要工程层：Core / Provider / Tools / Runtime / Workspace / Observability</span></div><div class="metric"><strong>16</strong><span>源码快照中的 unit test 文件</span></div><div class="metric"><strong>54</strong><span>静态统计到的直接 <code>it()</code> 测试声明</span></div><div class="metric"><strong>3</strong><span>写回检查状态：ready / conflict / unsafe</span></div></div>
+<section class="section searchable" id="overview"><div class="head"><div class="num">00</div><div><h2>阅读说明：这不是凭印象写的项目总结</h2><p class="muted">依据：上传的 minihareness.zip + 当前聊天中的开发记录。</p></div></div>
+<p>这份文档采用“源码反推 + 对话补时间线”的方式编写。源码用于确认当前实际存在的模块、接口、参数和边界；聊天记录用于补充为什么增加这些模块、开发中遇到哪些错误、怎样验证修复。</p>
+<div class="callout green"><strong>阅读原则</strong>已实现内容按源码描述；阶段顺序是依据对话与现有结构重建的开发历程，并不等于 Git commit 的精确顺序。上传的 ZIP 不包含可供核验的完整 Git 历史，因此不会伪造提交时间线。</div>
+<div class="callout amber"><strong>安全说明</strong>上传的项目压缩包包含名为 <code>.env</code> 的文件。本文不会读取、复制或展示其中的值，也不会把任何 API Key 写入 HTML。项目的 <code>.gitignore</code> 已包含 <code>.env</code>，但“被忽略”不代表文件不会被手动打包或上传。</div>
+<h3>本文会回答的核心问题</h3><ul><li>Agent Harness 和一个简单的模型 API 调用脚本有什么区别？</li><li>模型发出 tool call 后，谁来验证、执行、记录并把结果交还给模型？</li><li>为什么需要独立的 Runtime、Policy、Trace 和 Workspace 模块？</li><li>文件级沙箱、基线快照、Diff、审批、Writeback 各自解决什么问题？</li><li>Memory 当前做到哪一层，哪些记录会留在磁盘、哪些只存在于内存？</li><li>项目已具备哪些能力，距离 Docker / 远程执行 / 生产级 Harness 还差什么？</li></ul>
+<p class="small">本次生成时对上传源码进行了静态阅读与计数，没有在文档生成环境中重新安装依赖并运行测试。聊天中用户曾确认全量测试与端到端验收通过；文档会区分“聊天中的验收记录”与“源码静态核验”。</p></section>
+<section class="section searchable" id="snapshot"><div class="head"><div class="num">01</div><div><h2>项目快照：当前到底有哪些东西？</h2><p class="muted">先从仓库地图认识工程，而不是一上来逐行读代码。</p></div></div>
+<div class="grid2"><div class="card"><span class="pill green">项目定位</span><h3>MiniHarness</h3><p>一个以命令行作为入口、使用真实模型 API、可执行受控工具、能够在临时副本中修改项目，并允许人工审查和回写的轻量级 Coding Agent Harness。</p></div><div class="card"><span class="pill blue">技术选型</span><h3>TypeScript + Node.js</h3><p>TypeScript 提供类型约束；Node.js 提供文件、网络、子进程和 CLI 能力；pnpm 管理依赖；Vitest 承担自动化测试；<code>tsx</code> 直接运行 TypeScript。</p></div></div>
+<h3>仓库结构导览</h3><div class="tree">minihareness/
+├─ src/
+│  ├─ agent/agent.ts              # Agent Loop / 消息历史 / 生命周期事件
+│  ├─ model/
+│  │  ├─ types.ts                 # 消息、工具调用、Provider 接口
+│  │  ├─ http-provider.ts         # 真实 HTTP 模型适配器
+│  │  └─ scripted-provider.ts     # 预设回复模拟模型
+│  ├─ tools/
+│  │  ├─ registry.ts              # 工具注册、参数 JSON 解析、分发
+│  │  ├─ policy.ts                # allow / ask / deny 策略
+│  │  ├─ filesystem.ts             # list/read/search/edit 文件工具
+│  │  └─ check.ts                 # 固定 typecheck / test 工具
+│  ├─ runtime/
+│  │  ├─ process.ts               # 子进程、超时、输出上限
+│  │  ├─ workspace.ts             # 临时副本、排除规则、基线
+│  │  ├─ diff.ts                  # 文件级差异
+│  │  ├─ diff-display.ts           # 行级 Diff 渲染
+│  │  ├─ writeback-check.ts        # 写回前状态检查
+│  │  └─ writeback.ts              # 批准文件的应用与尽力回滚
+│  ├─ observability/
+│  │  ├─ trace-writer.ts           # JSONL 轨迹写入
+│  │  └─ trace-reader.ts           # 轨迹校验与统计
+│  ├─ cli.ts                       # 系统装配与交互入口
+│  ├─ trace-cli.ts                 # 轨迹摘要命令行入口
+│  ├─ demo/calculator.ts           # 小型演示工具
+│  └─ index.ts                     # 启动消息函数
+├─ tests/unit/                     # 16 个单元测试文件
+├─ package.json                    # dev / typecheck / test / trace
+├─ tsconfig.json                   # strict、NodeNext、exactOptionalPropertyTypes
+├─ pnpm-lock.yaml
+├─ .gitignore
+└─ .env                            # 本地配置；本文不展示内容</div>
+<h3>为什么这些模块要分开？</h3><table><thead><tr><th>模块</th><th>核心职责</th><th>不应该承担的职责</th></tr></thead><tbody><tr><td><code>agent.ts</code></td><td>控制模型与工具循环、维护本次消息历史、决定何时停止。</td><td>不直接写 HTTP 细节，也不内嵌所有文件系统实现。</td></tr><tr><td><code>http-provider.ts</code></td><td>把内部消息转换为 API 协议，发送请求并解析响应。</td><td>不执行工具，也不决定工具权限。</td></tr><tr><td><code>registry.ts</code></td><td>保存工具定义与 handler，并根据名称分发调用。</td><td>不决定某次调用是否需要用户批准。</td></tr><tr><td><code>policy.ts</code> + CLI 授权函数</td><td>给出 allow/ask/deny 决策，并在 ask 时询问用户。</td><td>不是操作系统级权限隔离。</td></tr><tr><td><code>runtime/</code></td><td>统一执行进程、管理工作区、比较文件并回写。</td><td>当前不是 Docker / VM 后端。</td></tr><tr><td><code>observability/</code></td><td>保存和分析运行事件。</td><td>不会自动把旧任务记录变成新任务的记忆。</td></tr></tbody></table></section>
+
+<section class="section searchable" id="timeline"><div class="head"><div class="num">02</div><div><h2>开发历程：系统是怎样一步步长出来的？</h2><p class="muted">由聊天记录与当前代码结构反向重建，不冒充精确的 Git 历史。</p></div></div>
+<div class="timeline">
+<div class="titem"><div class="when">STAGE 0 · PROJECT BOOTSTRAP</div><h3>建立 TypeScript 项目骨架</h3><p>先让工程能运行、能做类型检查、能执行测试。项目使用 ESM（<code>"type": "module"</code>）、NodeNext 模块解析和 pnpm scripts。</p><p><strong>留下的工程资产：</strong><code>package.json</code>、<code>tsconfig.json</code>、Vitest 测试入口与启动检查。</p></div>
+<div class="titem"><div class="when">STAGE 1 · MODEL BOUNDARY</div><h3>把模型 API 封装成 Provider</h3><p>用户明确采用 DeepSeek 官方 API。系统没有把 API 调用散落在 Agent 逻辑中，而是通过 <code>ModelProvider</code> 接口与 <code>OpenAICompatibleProvider</code> 隔离模型协议。</p><p><strong>关键收获：</strong>API Key / Base URL / Model 是配置；SDK 不是必需品。也可以直接用 fetch 发送 HTTP 请求，由自己维护协议转换与错误处理。</p></div>
+<div class="titem"><div class="when">STAGE 2 · AGENT LOOP</div><h3>实现“模型决策—工具执行—反馈—再决策”</h3><p>Agent 初始化 system/user 消息，循环调用 Provider；收到 tool call 后分发执行，把 tool result 追加到历史，再次请求模型；没有 tool call 时返回最终答案；超过 <code>maxSteps</code> 时停止。</p><p><strong>关键收获：</strong>Agent 不只是一次 LLM 请求，Agent Loop 才是持续执行任务的控制结构。</p></div>
+<div class="titem"><div class="when">STAGE 3 · TOOLS & GUARDRAILS</div><h3>建立工具注册、参数解析和权限策略</h3><p>工具通过 JSON Schema 暴露给模型；Registry 解析模型返回的 arguments；Policy 对只读工具自动放行，对编辑和测试操作要求审批，未知工具拒绝执行。</p><p><strong>关键收获：</strong>模型提出调用，不代表工具一定执行。调用意图与执行权限是两个步骤。</p></div>
+<div class="titem"><div class="when">STAGE 4 · RUNTIME</div><h3>把子进程执行从业务工具中抽离</h3><p>增加固定检查工具、超时控制、输出截断和进程树终止。Windows 下需要处理 <code>cmd.exe</code> / pnpm 启动差异，POSIX 与 Windows 的进程树终止方式也不同。</p><p><strong>关键收获：</strong>“运行命令”不是一行 spawn 就结束，还要考虑超时、输出规模、退出码和子进程。</p></div>
+<div class="titem"><div class="when">STAGE 5 · OBSERVABILITY</div><h3>让 Agent 的行为可追踪、可复盘</h3><p>定义生命周期事件并写入 JSONL。Trace Reader 校验记录并统计模型请求、工具调用、失败数、持续时间等。</p><p><strong>关键收获：</strong>系统不能只输出一句最终回答；需要可追溯的执行证据。</p></div>
+<div class="titem"><div class="when">STAGE 6 · WORKSPACE ISOLATION</div><h3>把编辑对象从原始项目改为临时副本</h3><p>工作区复制到系统临时目录下的 <code>miniharness-sandboxes/run-*</code>。复制时排除依赖、Git 元数据、环境文件和轨迹目录，并跳过符号链接。</p><p><strong>关键收获：</strong>文件工具的 workspace root 是一个边界，但这还不等于操作系统级隔离。</p></div>
+<div class="titem"><div class="when">STAGE 7 · DIFF & BASELINE</div><h3>从“副本修改”走向“修改可审查”</h3><p>先用 SHA-256 做文件级新增、修改、删除检测，再用 LCS 生成行级差异。创建工作区时保存基线快照，用来识别用户是否同时修改了原始文件。</p><p><strong>关键收获：</strong>Diff 解释“改了什么”；Baseline 解释“原文件是否还是当初那一版”。</p></div>
+<div class="titem"><div class="when">STAGE 8 · WRITEBACK</div><h3>加入逐文件审批和选择性回写</h3><p>写回前重新计算差异并检查状态；只接受显式批准的路径；新增使用独占创建，修改使用临时文件替换，删除前保存原始内容以便尽力回滚；最后验证批准文件是否仍有差异。</p><p><strong>关键收获：</strong>“Agent 修改了副本”与“Agent 可以覆盖原项目”之间必须有明确的交付边界。</p></div>
+<div class="titem"><div class="when">STAGE 9 · END-TO-END</div><h3>通过 CLI 验证拒绝、批准和结果一致性</h3><p>使用演示文件创建新任务，在 <code>--diff</code> 查看变更；<code>--apply</code> 先拒绝后批准；最后再次检查 Diff，确认批准文件已与原项目一致。</p><p><strong>聊天记录中的验收结果：</strong>用户确认完整端到端流程全部通过。</p></div>
+<div class="titem"><div class="when">STAGE 10 · CURRENT DECISION</div><h3>先冻结 MVP，再讨论 Docker 与长期记忆</h3><p>用户决定 Docker 暂时放一放，先理解当前架构。当前消息历史主要是单次 run 内存状态，Trace 是磁盘记录；跨任务长期记忆尚未实现。</p><p><strong>当前目标：</strong>梳理代码与设计边界，而不是为了“功能更多”继续堆模块。</p></div>
+</div></section>
+
+<section class="section searchable" id="architecture"><div class="head"><div class="num">03</div><div><h2>总体架构：这不是一个单文件 Agent</h2><p class="muted">按运行时依赖关系阅读，比按文件名逐个看更容易建立心智模型。</p></div></div>
+<figure class="diagram"><svg viewBox="0 0 940 650" role="img" aria-label="MiniHarness总体架构图"><defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8b929b"/></marker></defs>
+<rect x="300" y="20" width="340" height="58" rx="14" fill="#202123"/><text x="470" y="45" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">CLI · src/cli.ts</text><text x="470" y="64" text-anchor="middle" fill="#d1d5db" font-size="11">配置 / 任务入口 / 用户审批 / 组件装配</text>
+<path d="M470 78 V112" stroke="#8b929b" stroke-width="1.8" marker-end="url(#arr)"/><rect x="260" y="116" width="420" height="82" rx="15" fill="#e7f7f1" stroke="#8bd7bf"/><text x="470" y="143" text-anchor="middle" fill="#087f63" font-size="17" font-weight="700">Agent Core · agent.ts</text><text x="470" y="163" text-anchor="middle" fill="#14532d" font-size="12">消息历史 / Agent Loop / maxSteps / 生命周期事件</text><text x="470" y="181" text-anchor="middle" fill="#14532d" font-size="11">决策与调度，不直接实现文件操作</text>
+<path d="M360 198 V230 H190 V260" fill="none" stroke="#8b929b" stroke-width="1.8" marker-end="url(#arr)"/><path d="M580 198 V230 H750 V260" fill="none" stroke="#8b929b" stroke-width="1.8" marker-end="url(#arr)"/>
+<rect x="45" y="264" width="290" height="92" rx="14" fill="#eff6ff" stroke="#bfdbfe"/><text x="190" y="291" text-anchor="middle" fill="#1d4ed8" font-size="16" font-weight="700">Model Provider</text><text x="190" y="312" text-anchor="middle" fill="#1e40af" font-size="12">http-provider / scripted-provider</text><text x="190" y="333" text-anchor="middle" fill="#1e40af" font-size="11">内部消息 ⇄ HTTP API 协议</text>
+<rect x="605" y="264" width="290" height="92" rx="14" fill="#fffbeb" stroke="#f5d58a"/><text x="750" y="291" text-anchor="middle" fill="#92400e" font-size="16" font-weight="700">Tool Registry + Policy</text><text x="750" y="312" text-anchor="middle" fill="#92400e" font-size="12">registry.ts / policy.ts / CLI Authorizer</text><text x="750" y="333" text-anchor="middle" fill="#92400e" font-size="11">解析参数 / 鉴权 / 分发</text>
+<path d="M750 356 V389" stroke="#8b929b" stroke-width="1.8" marker-end="url(#arr)"/><rect x="560" y="393" width="380" height="98" rx="14" fill="#fff" stroke="#d1d5db"/><text x="750" y="418" text-anchor="middle" fill="#202123" font-size="15" font-weight="700">Tools</text><text x="750" y="440" text-anchor="middle" fill="#52525b" font-size="12">filesystem.ts · list/read/search/edit</text><text x="750" y="459" text-anchor="middle" fill="#52525b" font-size="12">check.ts · 固定 typecheck / test</text><text x="750" y="477" text-anchor="middle" fill="#52525b" font-size="11">工具结果作为 tool message 返回 Loop</text>
+<path d="M560 442 H520 V158 H260" fill="none" stroke="#8b929b" stroke-width="1.4" stroke-dasharray="5 5" marker-end="url(#arr)"/><text x="535" y="425" fill="#6b7280" font-size="10" transform="rotate(-90 535 425)">结果回流</text>
+<rect x="45" y="393" width="455" height="98" rx="14" fill="#f5f3ff" stroke="#ddd6fe"/><text x="272" y="418" text-anchor="middle" fill="#6d28d9" font-size="15" font-weight="700">Runtime + Workspace</text><text x="272" y="440" text-anchor="middle" fill="#5b21b6" font-size="12">process.ts · 子进程 / 超时 / 输出上限</text><text x="272" y="459" text-anchor="middle" fill="#5b21b6" font-size="12">workspace.ts · 临时副本 / 排除规则 / Baseline</text><text x="272" y="477" text-anchor="middle" fill="#5b21b6" font-size="11">当前是本地文件与进程层，不是 Docker Driver</text>
+<path d="M272 491 V520" stroke="#8b929b" stroke-width="1.8" marker-end="url(#arr)"/><path d="M750 491 V520" stroke="#8b929b" stroke-width="1.8" marker-end="url(#arr)"/>
+<rect x="45" y="524" width="455" height="92" rx="14" fill="#f3f4f6" stroke="#d1d5db"/><text x="272" y="549" text-anchor="middle" fill="#202123" font-size="15" font-weight="700">Observability</text><text x="272" y="570" text-anchor="middle" fill="#52525b" font-size="12">Trace Writer → JSONL → Trace Reader / Summary</text><text x="272" y="590" text-anchor="middle" fill="#6b7280" font-size="11">可复盘记录，不等于自动注入的长期记忆</text>
+<rect x="560" y="524" width="380" height="92" rx="14" fill="#e7f7f1" stroke="#8bd7bf"/><text x="750" y="549" text-anchor="middle" fill="#087f63" font-size="15" font-weight="700">Delivery Pipeline</text><text x="750" y="570" text-anchor="middle" fill="#14532d" font-size="12">Diff → Baseline Check → Human Approval</text><text x="750" y="590" text-anchor="middle" fill="#14532d" font-size="12">→ Writeback → Post-write Verification</text></svg><figcaption>图 1 · 当前源码的主要模块与控制流。图中表达职责边界，不代表每个模块之间只有一条调用路径。</figcaption></figure>
+<h3>系统最重要的分层思想</h3><div class="grid3"><div class="card"><span class="pill green">Decision</span><h3>Agent Core</h3><p>决定下一步要问模型什么、执行哪个工具、何时结束。</p></div><div class="card"><span class="pill blue">Mechanism</span><h3>Tools / Runtime</h3><p>把模型意图转换为受约束的实际操作，并拿到真实执行结果。</p></div><div class="card"><span class="pill amber">Governance</span><h3>Policy / Delivery</h3><p>限制可执行行为，并决定修改如何经过审查进入原项目。</p></div></div></section>
+
+<section class="section searchable" id="loop"><div class="head"><div class="num">04</div><div><h2>Agent Loop：Harness 的控制中枢</h2><p class="muted">核心文件：<code>src/agent/agent.ts</code></p></div></div>
+<p>Agent 的核心不是模型本身，而是围绕模型建立的控制循环。模型给出下一步决策；Harness 决定如何执行这个决策、怎样反馈结果，以及何时停止。</p>
+<figure class="diagram"><svg viewBox="0 0 900 560" role="img" aria-label="Agent Loop流程图"><defs><marker id="looparr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8b929b"/></marker></defs>
+<rect x="300" y="18" width="300" height="52" rx="13" fill="#202123"/><text x="450" y="49" fill="#fff" text-anchor="middle" font-size="15" font-weight="700">run(task)</text><path d="M450 70 V98" stroke="#8b929b" stroke-width="1.8" marker-end="url(#looparr)"/>
+<rect x="280" y="102" width="340" height="60" rx="13" fill="#f3f4f6" stroke="#d1d5db"/><text x="450" y="126" text-anchor="middle" fill="#202123" font-size="14" font-weight="700">初始化 messages</text><text x="450" y="146" text-anchor="middle" fill="#52525b" font-size="12">system + user</text><path d="M450 162 V190" stroke="#8b929b" stroke-width="1.8" marker-end="url(#looparr)"/>
+<rect x="280" y="194" width="340" height="62" rx="13" fill="#eff6ff" stroke="#bfdbfe"/><text x="450" y="219" text-anchor="middle" fill="#1d4ed8" font-size="14" font-weight="700">provider.complete(messages, tools)</text><text x="450" y="239" text-anchor="middle" fill="#1e40af" font-size="12">发送当前历史与工具定义</text><path d="M450 256 V284" stroke="#8b929b" stroke-width="1.8" marker-end="url(#looparr)"/>
+<polygon points="450,286 575,337 450,388 325,337" fill="#fffbeb" stroke="#f5d58a"/><text x="450" y="333" text-anchor="middle" fill="#92400e" font-size="14" font-weight="700">有 tool_calls？</text><text x="450" y="352" text-anchor="middle" fill="#92400e" font-size="11">push assistant message</text>
+<path d="M575 337 H730 V420" fill="none" stroke="#8b929b" stroke-width="1.8" marker-end="url(#looparr)"/><text x="630" y="325" fill="#6b7280" font-size="12">否</text><rect x="635" y="423" width="230" height="62" rx="13" fill="#e7f7f1" stroke="#8bd7bf"/><text x="750" y="447" text-anchor="middle" fill="#087f63" font-size="14" font-weight="700">返回最终答案</text><text x="750" y="467" text-anchor="middle" fill="#14532d" font-size="12">status = completed</text>
+<path d="M325 337 H170 V420" fill="none" stroke="#8b929b" stroke-width="1.8" marker-end="url(#looparr)"/><text x="213" y="325" fill="#6b7280" font-size="12">是</text><rect x="40" y="423" width="260" height="62" rx="13" fill="#f5f3ff" stroke="#ddd6fe"/><text x="170" y="447" text-anchor="middle" fill="#6d28d9" font-size="14" font-weight="700">Policy → Registry → Handler</text><text x="170" y="467" text-anchor="middle" fill="#5b21b6" font-size="12">逐个执行工具调用</text><path d="M170 485 V515 H450 V390" fill="none" stroke="#8b929b" stroke-width="1.8" marker-end="url(#looparr)"/><text x="465" y="509" fill="#6b7280" font-size="12">tool message 追加历史，进入下一轮</text></svg><figcaption>图 2 · 简化的 Agent Loop。实际实现还包含事件记录、工具授权、异常处理和 maxSteps 上限。</figcaption></figure>
+<h3>按源码解释一轮执行</h3><ol><li><strong>初始化消息。</strong><code>run(task)</code> 创建局部的 <code>messages</code> 数组，初始包含 system prompt 与 user task。</li><li><strong>进入 step 循环。</strong>在请求模型之前更新 <code>currentStep</code>，并发出 <code>model_request</code> 事件。</li><li><strong>向 Provider 请求。</strong>传入消息历史和 Registry 当前注册的工具定义。</li><li><strong>记录 assistant 响应。</strong>把 assistant message 追加到历史，再读取 <code>tool_calls</code>。</li><li><strong>判断结束条件。</strong>没有工具调用就返回 <code>completed</code>；存在工具调用则进入执行分支。</li><li><strong>执行每个工具。</strong>先调用授权函数；拒绝时将拒绝信息作为工具结果，批准时由 Registry 执行。</li><li><strong>把工具结果回填历史。</strong>每个调用结果以 <code>role: "tool"</code> 与 <code>tool_call_id</code> 追加到消息数组。</li><li><strong>下一轮再问模型。</strong>模型可据工具结果决定继续调用工具，或生成最终回答。</li><li><strong>处理异常与上限。</strong>模型请求失败会记录 <code>model_error</code> 并结束为 failed 事件；达到最大轮数返回 <code>max_steps</code>。</li></ol>
+<h3>关键代码：工具结果如何回流</h3><pre><code>messages.push(assistant);
+
+const toolCalls = assistant.tool_calls ?? [];
+
+if (toolCalls.length === 0) {
+  return {
+    status: "completed",
+    finalMessage: assistant.content ?? "",
+    steps: step,
+    messages,
+  };
+}
+
+for (const call of toolCalls) {
+  const approved = this.authorizeTool
+    ? await this.authorizeTool({
+        toolName: call.function.name,
+        argumentsJson: call.function.arguments,
+      })
+    : true;
+
+  const content = approved
+    ? await this.registry.execute(
+        call.function.name,
+        call.function.arguments,
+      )
+    : `Tool execution denied: ${call.function.name}`;
+
+  messages.push({
+    role: "tool",
+    tool_call_id: call.id,
+    content,
+  });
+}</code></pre>
+<div class="callout blue"><strong>为什么要让模型再次看到工具结果？</strong>工具调用本身只是一个意图。只有把执行后的真实结果反馈给模型，模型才能依据事实继续决策，而不是假设工具一定成功。</div>
+<h3>当前 Agent Core 的边界</h3><table><thead><tr><th>已实现</th><th>还未形成完整能力</th></tr></thead><tbody><tr><td>串行工具调用、工具结果反馈、maxSteps、事件回调、错误回填。</td><td>持久化任务状态、暂停/恢复、复杂计划树、并行工具调度、动态预算管理。</td></tr><tr><td>每次 <code>run()</code> 有独立消息历史。</td><td>跨 run 自动加载长期记忆或历史任务摘要。</td></tr><tr><td>系统提示词约束读写流程与检查结果。</td><td>完整的结构化计划验证器、策略 DSL、自动化评估框架。</td></tr></tbody></table></section>
+
+<section class="section searchable" id="provider"><div class="head"><div class="num">05</div><div><h2>模型接入：为什么自己写 Provider，而不是必须装 SDK？</h2><p class="muted">核心文件：<code>src/model/types.ts</code>、<code>http-provider.ts</code>、<code>scripted-provider.ts</code></p></div></div>
+<p>你在开发中问过：为什么要安装真实模型 SDK？不是给 API 和 Key，然后其他部分自己写吗？这正好引出一个关键的架构设计：<strong>模型服务是外部依赖，Provider 是系统的适配边界。</strong></p>
+<div class="grid2"><div class="card"><span class="pill blue">真实调用</span><h3>OpenAICompatibleProvider</h3><p>使用 Node 的 <code>fetch</code> 发 HTTP 请求，配置 API Key、Base URL 和模型名称，解析响应并转换成内部的 <code>AssistantMessage</code>。</p></div><div class="card"><span class="pill green">测试调用</span><h3>ScriptedModelProvider</h3><p>按预设顺序返回模型消息，不需要联网或消耗 API 额度，适合测试 Loop、工具反馈和停止条件。</p></div></div>
+<h3>内部协议与外部 API 协议</h3><pre><code>export interface ModelProvider {
+  complete(
+    messages: ChatMessage[],
+    tools?: ToolDefinition[],
+  ): Promise&lt;AssistantMessage&gt;;
+}</code></pre>
+<p>Agent Core 只依赖这个接口。HTTP Provider 负责把内部消息转换为 Chat Completions 风格的 payload，向 <code>{baseURL}/chat/completions</code> 发 POST 请求；它设置 Bearer Authorization、JSON Content-Type 和请求超时。</p>
+<h3>Provider 实际承担的责任</h3><ul><li>校验 apiKey、baseURL、model 不能为空。</li><li>清理 Base URL 末尾的斜杠，构造 endpoint。</li><li>按消息 role 转换字段，assistant 消息可能携带 tool_calls 与 <code>reasoning_content</code>。</li><li>使用 <code>AbortSignal.timeout</code> 处理请求超时。</li><li>校验 HTTP 状态、JSON 格式、choices[0]、assistant message、content 和 tool call 结构。</li><li>将 API 错误转换为可读异常，避免 Agent Core 依赖某个服务商的原始响应结构。</li></ul>
+<div class="callout amber"><strong>DeepSeek reasoning_content 的教训</strong>聊天中曾专门讨论思考模式返回的 <code>reasoning_content</code>。它不是用户最终答案，而是协议状态的一部分；Provider 需要在模型要求时保留并回传，不能随意丢弃，也不应把它当作普通用户可见日志输出。</div>
+<h3>为什么还要有 Scripted Provider？</h3><p>如果每个单元测试都请求真实模型，测试会受到网络、速率限制、模型随机性和费用影响。Scripted Provider 让测试可以精确规定“第一轮模型发出工具调用、第二轮返回最终回答”，从而把 Agent Loop 的正确性与模型服务的可用性解耦。</p></section>
+
+<section class="section searchable" id="tools"><div class="head"><div class="num">06</div><div><h2>Tools、Registry 与 Policy：从“模型提议”到“受控执行”</h2><p class="muted">核心文件：<code>src/tools/registry.ts</code>、<code>policy.ts</code>、<code>filesystem.ts</code>、<code>check.ts</code></p></div></div>
+<figure class="diagram"><svg viewBox="0 0 900 260" role="img" aria-label="工具调用治理流程"><defs><marker id="toolarr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8b929b"/></marker></defs>
+<rect x="20" y="76" width="150" height="70" rx="13" fill="#eff6ff" stroke="#bfdbfe"/><text x="95" y="103" text-anchor="middle" fill="#1d4ed8" font-size="14" font-weight="700">模型 tool_call</text><text x="95" y="124" text-anchor="middle" fill="#1e40af" font-size="11">name + arguments</text><path d="M170 111 H215" stroke="#8b929b" stroke-width="1.8" marker-end="url(#toolarr)"/>
+<rect x="220" y="76" width="150" height="70" rx="13" fill="#f3f4f6" stroke="#d1d5db"/><text x="295" y="103" text-anchor="middle" fill="#202123" font-size="14" font-weight="700">Policy</text><text x="295" y="124" text-anchor="middle" fill="#52525b" font-size="11">allow / ask / deny</text><path d="M370 111 H415" stroke="#8b929b" stroke-width="1.8" marker-end="url(#toolarr)"/>
+<rect x="420" y="76" width="150" height="70" rx="13" fill="#fffbeb" stroke="#f5d58a"/><text x="495" y="103" text-anchor="middle" fill="#92400e" font-size="14" font-weight="700">Authorization</text><text x="495" y="124" text-anchor="middle" fill="#92400e" font-size="11">ask 时询问用户</text><path d="M570 111 H615" stroke="#8b929b" stroke-width="1.8" marker-end="url(#toolarr)"/>
+<rect x="620" y="76" width="150" height="70" rx="13" fill="#e7f7f1" stroke="#8bd7bf"/><text x="695" y="103" text-anchor="middle" fill="#087f63" font-size="14" font-weight="700">Registry</text><text x="695" y="124" text-anchor="middle" fill="#14532d" font-size="11">解析 JSON / 查 handler</text><path d="M770 111 H810" stroke="#8b929b" stroke-width="1.8" marker-end="url(#toolarr)"/><rect x="805" y="76" width="80" height="70" rx="13" fill="#202123"/><text x="845" y="105" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Tool</text><text x="845" y="124" text-anchor="middle" fill="#d1d5db" font-size="10">执行</text><path d="M845 146 V205 H95 V148" fill="none" stroke="#8b929b" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#toolarr)"/><text x="470" y="196" text-anchor="middle" fill="#6b7280" font-size="12">工具结果 → tool message → 下一轮模型请求</text></svg><figcaption>图 3 · 工具调用的治理路径。工具定义描述“模型可以请求什么”，Policy/授权决定“这次是否允许执行”。</figcaption></figure>
+<h3>当前注册的主要工具</h3><table><thead><tr><th>工具名</th><th>用途</th><th>当前策略</th></tr></thead><tbody><tr><td><code>list_directory</code></td><td>列出工作区目录条目。</td><td><span class="pill green">allow</span></td></tr><tr><td><code>read_file</code></td><td>读取工作区文本文件。</td><td><span class="pill green">allow</span></td></tr><tr><td><code>search_files</code></td><td>在受限范围内搜索文件内容。</td><td><span class="pill green">allow</span></td></tr><tr><td><code>edit_file</code></td><td>通过精确 old_text / new_text 修改文件。</td><td><span class="pill amber">ask</span></td></tr><tr><td><code>run_check</code></td><td>运行固定的 typecheck 或 test 检查。</td><td><span class="pill amber">ask</span></td></tr><tr><td><code>echo</code></td><td>返回输入字符串，用于诊断。</td><td>Policy 函数未将 echo 列入 allow/ask，因此在当前 CLI 授权接线中会默认 deny；它主要是诊断工具。</td></tr></tbody></table>
+<h3>Registry 为什么存在？</h3><p><code>ToolRegistry</code> 保存每个工具的 JSON Schema 定义和 handler。它拒绝空名称与重复名称；执行时按工具名称查找 handler，解析 arguments JSON，并要求顶层参数是对象。未知工具和非法 JSON 会被拒绝。</p>
+<h3>编辑工具为什么要求 old_text 唯一匹配？</h3><p>模型先读取目标文件，再根据真实内容构造 <code>old_text</code>。工具会在原始文本中统计精确、非重叠匹配次数：必须恰好出现一次，否则不做任何修改。这个设计可以避免字符串重复时“猜测该改哪一处”。文件工具还有路径边界、符号链接解析、文件大小和搜索深度/结果数限制。</p>
+<div class="callout green"><strong>工程原则</strong>不要把模型输出直接拼成 shell 命令。当前 <code>run_check</code> 只接受 <code>typecheck</code> 和 <code>test</code> 两种枚举，再映射为固定命令，而不是接受模型任意提供的命令行字符串。</div></section>
+
+<section class="section searchable" id="runtime"><div class="head"><div class="num">07</div><div><h2>Runtime：子进程不是一句 spawn 就结束</h2><p class="muted">核心文件：<code>src/runtime/process.ts</code>、<code>src/tools/check.ts</code></p></div></div>
+<p>Harness 需要把模型的工作变成真实工程行为：安装依赖、执行类型检查、运行测试。Runtime 负责处理进程生命周期和结果收集；工具层只决定允许运行哪一种检查。</p>
+<div class="grid2"><div class="card"><h3>输入控制</h3><ul><li>显式 command、args、cwd。</li><li>timeoutMs 有效值检查。</li><li>maxOutputChars 有效值检查。</li><li>命令参数与工作目录分离。</li></ul></div><div class="card"><h3>执行结果</h3><ul><li>exitCode 与 signal。</li><li>stdout / stderr。</li><li>timedOut。</li><li>stdoutTruncated / stderrTruncated。</li></ul></div></div>
+<h3>超时与进程树终止</h3><p>Runtime 默认超时为 120 秒，默认捕获输出上限为 10,000 字符。Windows 下用 <code>taskkill.exe /PID … /T /F</code> 尝试终止进程树；POSIX 下使用独立进程组，先 SIGTERM，再短暂等待后 SIGKILL。不同平台行为不同，因此有独立的 ProcessRuntime 测试。</p>
+<h3>固定检查工具的调用链</h3><pre><code>模型请求 run_check({ check: "test" })
+          ↓
+Policy：ask
+          ↓
+CLI 授权函数询问用户
+          ↓
+Registry 校验参数并执行 handler
+          ↓
+check.ts 校验 check ∈ {typecheck, test}
+          ↓
+Runtime.runProcess(...)
+          ↓
+收集退出码、stdout、stderr、超时和截断标记
+          ↓
+把真实检查结果作为 tool message 返回模型</code></pre>
+<div class="callout amber"><strong>非常重要的边界</strong>当前 Runtime 在宿主机上创建子进程。将 <code>cwd</code> 设置为沙箱路径只决定工作目录，并不自动限制该进程访问其他磁盘路径、网络或宿主机资源。真正的执行隔离仍需要 OS sandbox、容器或 VM 等机制。</div></section>
+
+<section class="section searchable" id="trace"><div class="head"><div class="num">08</div><div><h2>Observability：让 Agent 的执行过程有证据</h2><p class="muted">核心文件：<code>src/observability/trace-writer.ts</code>、<code>trace-reader.ts</code>、<code>src/trace-cli.ts</code></p></div></div>
+<p>每次 run 会产生结构化事件。Trace Writer 把每个事件写成单独一行 JSON（JSONL），包含 <code>schemaVersion</code>、记录时间和事件对象。Trace 文件放在原始项目的 <code>.miniharness/traces/</code> 下，而不是复制到 Agent 工作区里。</p>
+<figure class="diagram"><svg viewBox="0 0 900 250" role="img" aria-label="Trace流水线"><defs><marker id="tracearr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8b929b"/></marker></defs>
+<rect x="22" y="55" width="180" height="90" rx="14" fill="#e7f7f1" stroke="#8bd7bf"/><text x="112" y="83" text-anchor="middle" fill="#087f63" font-size="15" font-weight="700">Agent Events</text><text x="112" y="105" text-anchor="middle" fill="#14532d" font-size="12">run / model / tool</text><text x="112" y="124" text-anchor="middle" fill="#14532d" font-size="11">started / finished / error</text><path d="M202 100 H245" stroke="#8b929b" stroke-width="1.8" marker-end="url(#tracearr)"/>
+<rect x="250" y="55" width="180" height="90" rx="14" fill="#f3f4f6" stroke="#d1d5db"/><text x="340" y="83" text-anchor="middle" fill="#202123" font-size="15" font-weight="700">Trace Writer</text><text x="340" y="105" text-anchor="middle" fill="#52525b" font-size="12">redact common secrets</text><text x="340" y="124" text-anchor="middle" fill="#52525b" font-size="11">append JSONL records</text><path d="M430 100 H473" stroke="#8b929b" stroke-width="1.8" marker-end="url(#tracearr)"/>
+<rect x="478" y="55" width="180" height="90" rx="14" fill="#eff6ff" stroke="#bfdbfe"/><text x="568" y="83" text-anchor="middle" fill="#1d4ed8" font-size="15" font-weight="700">Trace File</text><text x="568" y="105" text-anchor="middle" fill="#1e40af" font-size="12">.miniharness/traces/*.jsonl</text><text x="568" y="124" text-anchor="middle" fill="#1e40af" font-size="11">可留存 / 可检查</text><path d="M658 100 H701" stroke="#8b929b" stroke-width="1.8" marker-end="url(#tracearr)"/>
+<rect x="706" y="55" width="172" height="90" rx="14" fill="#f5f3ff" stroke="#ddd6fe"/><text x="792" y="83" text-anchor="middle" fill="#6d28d9" font-size="15" font-weight="700">Trace Reader</text><text x="792" y="105" text-anchor="middle" fill="#5b21b6" font-size="12">校验 / 汇总</text><text x="792" y="124" text-anchor="middle" fill="#5b21b6" font-size="11">请求、失败、时长、工具统计</text><text x="450" y="196" text-anchor="middle" fill="#6b7280" font-size="13">记录被持久化 ≠ 下一次任务会自动读取并注入上下文</text></svg><figcaption>图 4 · Trace 的职责是可观测性与复盘；它不是 Memory Store。</figcaption></figure>
+<h3>当前事件类型</h3><table><thead><tr><th>事件</th><th>代表什么</th></tr></thead><tbody><tr><td><code>run_started</code></td><td>任务开始，记录 taskLength。</td></tr><tr><td><code>model_request</code></td><td>第几步、消息数、可用工具数。</td></tr><tr><td><code>model_response</code></td><td>是否有文本、模型请求了哪些工具。</td></tr><tr><td><code>model_error</code></td><td>模型请求失败的原因；Writer 对常见 API Key / Bearer 模式做脱敏。</td></tr><tr><td><code>tool_started</code></td><td>工具名称、调用 ID、step。</td></tr><tr><td><code>tool_finished</code></td><td>成功与否、结果长度、执行时长。</td></tr><tr><td><code>run_finished</code></td><td>completed / max_steps / failed 与 step 数。</td></tr></tbody></table>
+<p><code>trace-cli.ts</code> 可读取指定轨迹，或查找最近修改的 JSONL 文件并打印摘要。摘要包括记录数、状态、持续时间、模型请求/错误、工具调用/失败及每种工具的统计。</p>
+<div class="callout red"><strong>日志安全的边界</strong>当前 Writer 对 <code>sk-...</code> 与 Bearer token 这类常见模式做了脱敏，且新文件以受限权限创建；但这不等于对所有敏感信息做了完整数据防泄漏。不要把原始 prompt、私密文件内容或任意错误信息默认当成安全可公开日志。</div></section>
+
+<section class="section searchable" id="workspace"><div class="head"><div class="num">09</div><div><h2>Workspace：为什么先复制到临时目录？</h2><p class="muted">核心文件：<code>src/runtime/workspace.ts</code></p></div></div>
+<p>最早的风险是：如果 Agent 的文件工具直接操作原始项目，模型一次错误的编辑就会污染真实工作区。当前设计先创建一个临时副本，文件工具绑定这个副本的根路径。原始项目与副本分离，修改先发生在副本中，再经 Diff 与审批决定是否回写。</p>
+<figure class="diagram"><svg viewBox="0 0 900 320" role="img" aria-label="Workspace隔离与回写"><defs><marker id="wsarr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8b929b"/></marker></defs>
+<rect x="40" y="45" width="240" height="100" rx="15" fill="#f3f4f6" stroke="#d1d5db"/><text x="160" y="75" text-anchor="middle" fill="#202123" font-size="16" font-weight="700">Source Project</text><text x="160" y="99" text-anchor="middle" fill="#52525b" font-size="12">原始项目目录</text><text x="160" y="119" text-anchor="middle" fill="#52525b" font-size="11">不让普通 Agent 文件工具直接编辑</text><path d="M280 95 H355" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wsarr)"/><text x="317" y="82" text-anchor="middle" fill="#6b7280" font-size="11">cp + filter</text>
+<rect x="360" y="45" width="240" height="100" rx="15" fill="#eff6ff" stroke="#bfdbfe"/><text x="480" y="75" text-anchor="middle" fill="#1d4ed8" font-size="16" font-weight="700">Temporary Workspace</text><text x="480" y="99" text-anchor="middle" fill="#1e40af" font-size="12">OS temp / miniharness-sandboxes/run-*</text><text x="480" y="119" text-anchor="middle" fill="#1e40af" font-size="11">工具在副本中读写</text><path d="M480 145 V184" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wsarr)"/><rect x="335" y="188" width="290" height="75" rx="14" fill="#fffbeb" stroke="#f5d58a"/><text x="480" y="214" text-anchor="middle" fill="#92400e" font-size="15" font-weight="700">Diff + Baseline Check</text><text x="480" y="235" text-anchor="middle" fill="#92400e" font-size="12">找出变更，并识别源文件冲突</text><path d="M335 225 H160 V149" fill="none" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wsarr)"/><text x="166" y="203" fill="#6b7280" font-size="12">仅经批准回写</text><rect x="685" y="55" width="175" height="80" rx="14" fill="#fef2f2" stroke="#fecaca"/><text x="772" y="82" text-anchor="middle" fill="#b91c1c" font-size="14" font-weight="700">Excluded</text><text x="772" y="103" text-anchor="middle" fill="#991b1b" font-size="11">.env / .git / node_modules</text><text x="772" y="119" text-anchor="middle" fill="#991b1b" font-size="11">依赖 / 私密配置 / 轨迹</text><path d="M600 95 H680" stroke="#8b929b" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#wsarr)"/><text x="450" y="296" text-anchor="middle" fill="#6b7280" font-size="12">隔离副本降低误改风险，但不限制宿主机进程的全部权限。</text></svg><figcaption>图 5 · 当前工作区是本地临时副本，不是 Docker 容器。</figcaption></figure>
+<h3>创建工作区的具体步骤</h3><ol><li>通过 <code>realpath</code> 解析原始项目路径并确认它是目录。</li><li>在系统临时目录创建 <code>miniharness-sandboxes</code>。</li><li>使用 <code>mkdtemp</code> 创建唯一的 <code>run-*</code> 工作区。</li><li>递归复制项目，但排除指定目录和敏感配置；不复制符号链接。</li><li>遍历副本，为每个普通文件记录大小和 SHA-256。</li><li>把基线清单写到工作区旁边的 <code>{workspaceRoot}.baseline.json</code>。</li><li>返回 sourceRoot、workspaceRoot 和 cleanup 函数。</li></ol>
+<h3>当前排除规则</h3><table><thead><tr><th>类别</th><th>当前排除项（示例）</th><th>目的</th></tr></thead><tbody><tr><td>版本 / 轨迹</td><td><code>.git</code>、<code>.miniharness</code></td><td>避免复制 Git 元数据和历史执行日志。</td></tr><tr><td>依赖 / 构建产物</td><td><code>node_modules</code>、<code>dist</code>、<code>coverage</code>、<code>release</code>、<code>target</code>、<code>.turbo</code></td><td>减少复制体积与无关差异。</td></tr><tr><td>敏感配置</td><td><code>.env</code>、<code>.env.*</code>、<code>.npmrc</code>、<code>.pnpmfile.cjs</code></td><td>避免把常见凭证、registry 配置与可执行 pnpm hook 带入副本。</td></tr><tr><td>文件类型</td><td>符号链接与非普通文件</td><td>避免把外部路径通过链接带入普通文件扫描。</td></tr></tbody></table>
+<div class="callout amber"><strong>当前生命周期上的一个细节</strong>工作区模块提供 <code>cleanup()</code>，但正常 Agent 任务结束后 CLI 会打印“Workspace retained for review”，把副本保留给用户审查。它不是自动清理的短生命周期容器；旧沙箱可能长期留在系统临时目录，后续可以增加显式清理命令与过期策略。</div></section>
+
+<section class="section searchable" id="diff"><div class="head"><div class="num">10</div><div><h2>Diff 与 Baseline：变更检测和冲突检测不是同一件事</h2><p class="muted">核心文件：<code>diff.ts</code>、<code>diff-display.ts</code>、<code>workspace.ts</code>、<code>writeback-check.ts</code></p></div></div>
+<div class="grid2"><div class="card"><span class="pill blue">Diff</span><h3>“发生了什么变化？”</h3><p>分别扫描 source 与 workspace，记录文件路径、大小、SHA-256。根据路径集合与 hash 判断新增、修改、删除。</p></div><div class="card"><span class="pill amber">Baseline</span><h3>“源文件是否还是原来那一版？”</h3><p>工作区创建时保存每个文件的初始 hash。准备写回时，将原始文件当前 hash 与基线比较，判断是否存在并发修改冲突。</p></div></div>
+<h3>三种文件变化</h3><table><thead><tr><th>类型</th><th>source</th><th>workspace</th><th>含义</th></tr></thead><tbody><tr><td><span class="pill green">added</span></td><td>不存在</td><td>存在</td><td>Agent 在副本中新建文件。</td></tr><tr><td><span class="pill blue">modified</span></td><td>存在，hash 不同</td><td>存在</td><td>文件内容被修改。</td></tr><tr><td><span class="pill red">deleted</span></td><td>存在</td><td>不存在</td><td>Agent 在副本中删除文件。</td></tr></tbody></table>
+<h3>为什么基线不能只记录时间戳？</h3><p>文件修改时间可能受复制、同步、解压和工具行为影响；SHA-256 对内容做摘要，更适合检查内容是否变化。基线条目当前保存 <code>size</code> 与 <code>sha256</code>，其中冲突判断主要依赖 hash。</p>
+<h3>行级 Diff 如何生成？</h3><p><code>diff-display.ts</code> 先把 CRLF / CR 规范化为 LF，再按行切分，通过最长公共子序列（LCS）动态规划构建相似 unified diff 的行列表：空格前缀表示保留行，<code>-</code> 表示删除行，<code>+</code> 表示新增行。</p><ul><li>文本文件最大读取大小：256 KiB。</li><li>LCS 动态规划最大单元格数：1,000,000。</li><li>渲染行数上限：300 行。</li><li>二进制文件或过大文件不会强行展示文本 Diff。</li></ul>
+<div class="callout blue"><strong>一次真实的调试教训</strong>Windows 路径使用反斜杠，但 Diff 记录统一用 <code>/</code>。最初路径校验把 <code>src/demo.ts</code> 转成了 <code>src\demo.ts</code>，导致嵌套文件被错误地标为 <code>unsafe</code>。修复方式是：内部相对路径统一用 <code>/</code>；真正访问文件时再用 <code>path.join()</code>。</div></section>
+
+<section class="section searchable" id="writeback"><div class="head"><div class="num">11</div><div><h2>Writeback：怎样把修改安全地交付回原项目？</h2><p class="muted">核心文件：<code>writeback-check.ts</code>、<code>writeback.ts</code>、<code>cli.ts</code></p></div></div>
+<p>这是当前项目最有工程价值的一层。它解决的不只是“复制文件”，而是把模型在临时副本中的结果转换成一个经过检查、明确批准、可以验证的交付操作。</p>
+<figure class="diagram"><svg viewBox="0 0 900 470" role="img" aria-label="安全回写流程"><defs><marker id="wbarr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8b929b"/></marker></defs>
+<rect x="300" y="15" width="300" height="52" rx="12" fill="#202123"/><text x="450" y="46" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">Current Workspace Changes</text><path d="M450 67 V92" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wbarr)"/>
+<rect x="270" y="96" width="360" height="60" rx="12" fill="#eff6ff" stroke="#bfdbfe"/><text x="450" y="120" text-anchor="middle" fill="#1d4ed8" font-size="14" font-weight="700">预检查：Baseline + Path + State</text><text x="450" y="140" text-anchor="middle" fill="#1e40af" font-size="12">重新扫描差异、验证路径与原文件 hash</text><path d="M450 156 V183" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wbarr)"/>
+<polygon points="450,185 565,230 450,275 335,230" fill="#fffbeb" stroke="#f5d58a"/><text x="450" y="226" text-anchor="middle" fill="#92400e" font-size="14" font-weight="700">状态 ready？</text><text x="450" y="244" text-anchor="middle" fill="#92400e" font-size="11">冲突 / 不安全则拦截</text><path d="M565 230 H690 V285" fill="none" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wbarr)"/><text x="610" y="218" fill="#b91c1c" font-size="12">否</text><rect x="625" y="288" width="230" height="58" rx="12" fill="#fef2f2" stroke="#fecaca"/><text x="740" y="312" text-anchor="middle" fill="#b91c1c" font-size="14" font-weight="700">Block / Report</text><text x="740" y="331" text-anchor="middle" fill="#991b1b" font-size="11">不静默覆盖</text>
+<path d="M335 230 H205 V285" fill="none" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wbarr)"/><text x="250" y="218" fill="#087f63" font-size="12">是</text><rect x="75" y="288" width="260" height="58" rx="12" fill="#e7f7f1" stroke="#8bd7bf"/><text x="205" y="312" text-anchor="middle" fill="#087f63" font-size="14" font-weight="700">逐文件人工审批</text><text x="205" y="331" text-anchor="middle" fill="#14532d" font-size="11">y 批准 / n 拒绝</text><path d="M205 346 V374" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wbarr)"/>
+<rect x="75" y="378" width="350" height="62" rx="12" fill="#f5f3ff" stroke="#ddd6fe"/><text x="250" y="403" text-anchor="middle" fill="#6d28d9" font-size="14" font-weight="700">Apply + Best-effort Rollback</text><text x="250" y="423" text-anchor="middle" fill="#5b21b6" font-size="11">add: wx / modify: temp+rename / delete: unlink</text><path d="M425 409 H480" stroke="#8b929b" stroke-width="1.8" marker-end="url(#wbarr)"/><rect x="485" y="378" width="330" height="62" rx="12" fill="#e7f7f1" stroke="#8bd7bf"/><text x="650" y="403" text-anchor="middle" fill="#087f63" font-size="14" font-weight="700">Post-write Verification</text><text x="650" y="423" text-anchor="middle" fill="#14532d" font-size="11">批准文件不再出现在差异列表中</text></svg><figcaption>图 6 · Writeback 的控制路径。审批只是其中一步，写入前后仍要检查文件状态。</figcaption></figure>
+<h3>检查结果的三种状态</h3><table><thead><tr><th>状态</th><th>解释</th><th>处理原则</th></tr></thead><tbody><tr><td><span class="pill green">ready</span></td><td>当前文件状态与基线关系符合预期，且路径通过检查。</td><td>可以进入人工审批，但不代表自动批准。</td></tr><tr><td><span class="pill amber">conflict</span></td><td>源文件被用户改过、目标路径已存在或文件状态与预期不一致。</td><td>阻止静默覆盖；需要重新审查。</td></tr><tr><td><span class="pill red">unsafe</span></td><td>路径非法、遇到符号链接、基线不合法或检查抛出安全异常。</td><td>拒绝操作并检查原因。</td></tr></tbody></table>
+<h3>当前写回引擎的具体行为</h3><ul><li>要求调用方显式传入 <code>approvedPaths</code>；重复路径会被拒绝。</li><li>批准路径必须仍是当前差异，并且预检查状态为 <code>ready</code>。</li><li>新增文件使用 <code>open(..., "wx")</code>，避免直接覆盖已经存在的目标。</li><li>修改文件先写同目录临时文件，再 rename 替换目标。</li><li>删除前保存原始内容与权限位，以便失败时尝试恢复。</li><li>记录已应用操作；后续出错时按反向顺序尽力回滚。</li><li>写回结束后重新扫描差异，验证批准文件不再显示为差异。</li></ul>
+<div class="callout red"><strong>TOCTOU：检查时与使用时之间的竞争窗口</strong>代码会在写回前、每个文件处理前重新检查，并对文件路径做 lstat 检查，但文件系统仍可能被外部进程并发修改。路径检查与后续写入不是一个原子操作，攻击者若能在两步之间替换路径或链接，仍可能制造竞态。</div>
+<ul><li>多文件写回不是数据库事务；进程崩溃、磁盘错误或回滚自身失败时，可能留下部分结果。</li><li>基线 JSON 是普通旁路文件，没有签名或可信存储保护；不能把它当作抵御恶意篡改的安全根。</li><li>逐文件审批不是逐行审批；用户确认一个文件意味着批准该文件当前检测到的整体变更。</li><li>临时文件替换、文件权限和 rename 的具体语义受操作系统影响，需要在目标平台做专门测试。</li></ul></section>
+
+<section class="section searchable" id="cli"><div class="head"><div class="num">12</div><div><h2>CLI 主流程：系统怎样被装配起来？</h2><p class="muted">核心文件：<code>src/cli.ts</code></p></div></div>
+<p><code>cli.ts</code> 是 Composition Root（装配根）：它读取配置，创建 Workspace，准备依赖，注册工具，创建 Provider 与 Agent，接上权限回调和 Trace Writer，最后运行任务。</p>
+<pre><code>CLI arguments
+  ├─ --diff &lt;workspace&gt;  → 只看差异，不请求模型
+  ├─ --apply &lt;workspace&gt; → 展示差异、逐文件审批、回写
+  └─ &lt;task text&gt;
+       ↓
+     validate LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
+       ↓
+     createSandboxWorkspace(process.cwd())
+       ↓
+     prepareSandboxDependencies(workspaceRoot)
+       ↓
+     register filesystem tools + run_check + echo
+       ↓
+     OpenAICompatibleProvider
+       ↓
+     Agent(maxSteps = 6, onEvent, authorizeTool)
+       ↓
+     agent.run(task)
+       ↓
+     print messages / status / retained workspace path</code></pre>
+<h3>CLI 中最重要的职责</h3><div class="grid2"><div class="card"><h3>装配依赖</h3><p>把 Provider、Registry、Tools、Agent、Trace Writer 和授权回调组合成可运行系统。Agent Core 本身不需要知道 CLI 的具体交互方式。</p></div><div class="card"><h3>交互边界</h3><p>解析 <code>--diff</code> 与 <code>--apply</code>，询问工具审批，打印执行轨迹与结果，并把临时工作区路径告诉用户。</p></div></div>
+<h3>依赖安装为什么单独处理？</h3><p>当前 CLI 会在临时工作区中执行 <code>pnpm install --frozen-lockfile --ignore-scripts</code>，使用 120 秒超时和 8,000 字符输出上限。这样沙箱副本能有自己的依赖环境，而不依赖原始项目的 <code>node_modules</code>。聊天中曾遇到离线安装缺少 tarball 的错误：lockfile 已锁定版本，不代表本机 pnpm store 一定有所有包。当前源码不再把依赖安装固定为 offline 模式，但网络、镜像和依赖供应链仍是外部依赖。</p>
+<h3>命令入口</h3><table><thead><tr><th>命令</th><th>作用</th><th>是否请求模型</th></tr></thead><tbody><tr><td><code>pnpm dev -- "任务"</code></td><td>创建工作区并执行 Agent 任务。</td><td>是</td></tr><tr><td><code>pnpm dev -- --diff "工作区路径"</code></td><td>扫描 source/workspace 并渲染 Diff。</td><td>否</td></tr><tr><td><code>pnpm dev -- --apply "工作区路径"</code></td><td>展示差异、预检查并询问每个 ready 文件是否批准。</td><td>否</td></tr><tr><td><code>pnpm trace</code></td><td>读取最近的轨迹并打印统计摘要。</td><td>否</td></tr><tr><td><code>pnpm typecheck</code> / <code>pnpm test</code></td><td>运行类型检查和单元测试。</td><td>否</td></tr></tbody></table>
+<div class="callout blue"><strong>Windows 参数解析教训</strong>开发中出现过 <code>pnpm dev -- "任务"</code> 最终把 <code>--</code> 一并传进程序参数的问题。当前 CLI 通过过滤 <code>process.argv.slice(2)</code> 中的独立 <code>--</code> 来处理这个差异。这种小问题经常发生在 npm/pnpm script、shell 与 Node 参数边界上。</div></section>
+
+<section class="section searchable" id="memory"><div class="head"><div class="num">13</div><div><h2>Agent Memory：当前有工作记忆，但没有完整长期记忆</h2><p class="muted">这是用户最后明确提出的问题，也是后续理解 Harness 的关键分界。</p></div></div>
+<figure class="diagram"><svg viewBox="0 0 900 330" role="img" aria-label="工作记忆、轨迹、长期记忆区分">
+<rect x="30" y="38" width="250" height="160" rx="17" fill="#e7f7f1" stroke="#8bd7bf"/><text x="155" y="70" text-anchor="middle" fill="#087f63" font-size="16" font-weight="700">Working Memory</text><text x="155" y="96" text-anchor="middle" fill="#14532d" font-size="12">单次 Agent.run() 内</text><rect x="58" y="116" width="194" height="56" rx="10" fill="#fff" stroke="#b9ead8"/><text x="155" y="139" text-anchor="middle" fill="#202123" font-size="12">messages[]</text><text x="155" y="157" text-anchor="middle" fill="#52525b" font-size="11">system / user / assistant / tool</text>
+<rect x="325" y="38" width="250" height="160" rx="17" fill="#eff6ff" stroke="#bfdbfe"/><text x="450" y="70" text-anchor="middle" fill="#1d4ed8" font-size="16" font-weight="700">Execution Trace</text><text x="450" y="96" text-anchor="middle" fill="#1e40af" font-size="12">JSONL 持久化</text><rect x="353" y="116" width="194" height="56" rx="10" fill="#fff" stroke="#bfdbfe"/><text x="450" y="139" text-anchor="middle" fill="#202123" font-size="12">events.jsonl</text><text x="450" y="157" text-anchor="middle" fill="#52525b" font-size="11">复盘 / 统计，不自动注入</text>
+<rect x="620" y="38" width="250" height="160" rx="17" fill="#f5f3ff" stroke="#ddd6fe"/><text x="745" y="70" text-anchor="middle" fill="#6d28d9" font-size="16" font-weight="700">Long-term Memory</text><text x="745" y="96" text-anchor="middle" fill="#5b21b6" font-size="12">跨任务知识与经验</text><rect x="648" y="116" width="194" height="56" rx="10" fill="#fff" stroke="#ddd6fe"/><text x="745" y="139" text-anchor="middle" fill="#202123" font-size="12">当前未实现</text><text x="745" y="157" text-anchor="middle" fill="#52525b" font-size="11">需增加存储 / 检索 / 注入</text>
+<path d="M155 198 V236 H745 V198" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5 5"/><text x="450" y="260" text-anchor="middle" fill="#6b7280" font-size="12">未来：Trace → 经验提取 → 记忆存储 → 相关检索 → 新任务上下文</text><text x="450" y="294" text-anchor="middle" fill="#202123" font-size="14" font-weight="700">“被记录下来”不等于“被记住并在未来使用”</text></svg><figcaption>图 7 · 三种不同的记忆层次。当前实现的是前两种的基础版本，第三种尚未建立。</figcaption></figure>
+<h3>当前消息历史放在哪里？</h3><p>在 <code>Agent.run(task)</code> 方法内部，创建一个局部的 <code>ChatMessage[]</code> 数组。每次模型响应、工具调用和工具结果都会被追加到这份历史里。它是单次 run 的工作上下文，不是跨任务数据库。</p>
+<h3>Trace 为什么不是 Memory？</h3><p>Trace Writer 会把生命周期事件写到磁盘；Trace Reader 能读取这些记录并统计模型请求、工具调用、失败与时长。但当前 Agent 在开始新任务时没有自动读取旧轨迹、提炼经验或检索相关事件，因此 Trace 只是持久化的可观测性数据。</p>
+<h3>如果以后要做长期记忆，最小设计应该是什么？</h3><pre><code>MemoryStore
+  ├─ write(memoryItem)       # 保存经验
+  ├─ search(query, scope)    # 检索相关记忆
+  ├─ update(id, content)     # 修订 / 去重 / 过期
+  └─ delete(id)              # 删除错误或过时记忆
+
+任务启动：
+  task + project context
+       ↓
+  MemoryRetriever.search(...)
+       ↓
+  relevance / trust / freshness filtering
+       ↓
+  注入有限的 memory context
+       ↓
+  Agent Loop
+
+任务结束：
+  trace + task outcome
+       ↓
+  candidate memory extraction
+       ↓
+  validation / user confirmation
+       ↓
+  MemoryStore.write(...)</code></pre>
+<div class="callout amber"><strong>不建议立刻加向量数据库</strong>先用 JSON/SQLite 实现明确的记忆结构、来源、创建时间、适用项目、可信度与过期策略，更容易验证价值。只有当检索规模、语义召回和跨任务经验确实需要时，再考虑 embedding 与向量索引。</div></section>
+
+<section class="section searchable" id="tests"><div class="head"><div class="num">14</div><div><h2>测试体系：用什么证据证明模块行为？</h2><p class="muted">源码快照静态统计：16 个 unit test 文件，54 个直接 <code>it()</code> 声明。</p></div></div>
+<p>测试不是附属品，而是让 Agent 工程可持续演化的基础。尤其是 Agent Loop、文件修改与写回，单靠“看起来能跑”是不够的。</p>
+<table><thead><tr><th>测试文件</th><th>覆盖重点</th><th>静态计数</th></tr></thead><tbody>
+<tr><td><code>agent.test.ts</code></td><td>最终回答、工具反馈、工具错误、maxSteps、事件顺序、模型失败。</td><td>7</td></tr><tr><td><code>calculator.test.ts</code></td><td>演示工具基础行为。</td><td>1</td></tr><tr><td><code>check.test.ts</code></td><td>固定检查工具参数与结果。</td><td>2</td></tr><tr><td><code>diff-display.test.ts</code></td><td>新增/删除/修改行、相同文本、换行符归一化。</td><td>5</td></tr><tr><td><code>diff.test.ts</code></td><td>文件级变化检测。</td><td>2</td></tr><tr><td><code>filesystem.test.ts</code></td><td>路径边界、读写、搜索、匹配唯一性等文件工具行为。</td><td>9</td></tr><tr><td><code>http-provider.test.ts</code></td><td>HTTP Provider 请求和响应解析。</td><td>2</td></tr><tr><td><code>policy.test.ts</code></td><td>allow / ask / deny 策略。</td><td>3</td></tr><tr><td><code>process.test.ts</code></td><td>stdout/stderr、退出码、超时、输出上限。</td><td>3</td></tr><tr><td><code>scripted-provider.test.ts</code></td><td>脚本化模型响应。</td><td>2</td></tr><tr><td><code>startup.test.ts</code></td><td>启动模块。</td><td>1</td></tr><tr><td><code>trace-reader.test.ts</code></td><td>统计模型、工具、持续时间和不完整运行。</td><td>2</td></tr><tr><td><code>trace-writer.test.ts</code></td><td>JSONL 写入、敏感模式脱敏。</td><td>2</td></tr><tr><td><code>workspace.test.ts</code></td><td>副本、排除规则、基线、清理。</td><td>1</td></tr><tr><td><code>writeback-check.test.ts</code></td><td>ready/conflict/unsafe 的前置检查。</td><td>5</td></tr><tr><td><code>writeback.test.ts</code></td><td>新增/修改/删除、冲突、路径拒绝、审批范围。</td><td>7</td></tr></tbody></table>
+<div class="callout green"><strong>聊天中的验收记录</strong>你在开发对话中多次报告 <code>pnpm typecheck</code> 与 <code>pnpm test</code> 通过，并最终确认端到端拒绝、批准、回写与再次 Diff 全部通过。本文的 54 是对上传源码中的测试声明做的静态计数，不是本次重新运行测试后的输出。</div>
+<h3>当前测试体系的空白</h3><ul><li>源码里有 unit tests，但 ZIP 中没有看到成体系的 integration test 实现（目录可能为空）。</li><li>对多文件中途失败、进程崩溃、回滚自身失败的系统性故障注入测试仍值得补充。</li><li>符号链接竞态、路径被并发替换、恶意文件系统状态需要更严格的安全测试。</li><li>没有自动化测试证明 Docker 或远程执行，因为当前没有这些后端。</li><li>没有基准评估 Agent 的任务完成率、工具调用效率、token / API 成本或长期记忆收益。</li></ul></section>
+
+<section class="section searchable" id="lessons"><div class="head"><div class="num">15</div><div><h2>工程问题复盘：那些报错为什么重要？</h2><p class="muted">从开发聊天中抽取的关键问题，不是把错误当成挫折，而是理解系统边界。</p></div></div>
+<div class="chat">
+<div class="bubble user"><div class="speaker">USER · MODEL BOUNDARY</div><p>“为什么要安装真实模型的 SDK？我以为是给模型 API 和 Key，其他的自己写呀。”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p>SDK 只是调用外部模型的一种封装，不是 Agent Harness 的核心。项目用 <code>ModelProvider</code> 抽象接口，再以原生 HTTP Provider 实现 API 协议，从而把模型调用与 Agent Loop 解耦。</p></div>
+<div class="bubble user"><div class="speaker">USER · FILE EDIT</div><p>“old text 也是模型返回吗？如果不是唯一匹配，当前代码是怎么做的？”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p><code>old_text</code> 是模型在读过文件后构造的工具参数，但真正是否匹配由工具对磁盘上的实际内容进行验证。当前编辑工具要求精确、非重叠匹配次数恰好为 1；否则拒绝修改，不做猜测。</p></div>
+<div class="bubble user"><div class="speaker">USER · TYPESCRIPT</div><p>“运算符 >= 不能应用于类型 number 和 {}。”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p>这类错误来自输入值类型未被充分收窄。文件搜索工具中的 <code>max_results</code> 需要通过明确的类型、整数和范围校验，不能让未经验证的未知值参与数值比较。</p></div>
+<div class="bubble user"><div class="speaker">USER · WINDOWS PATH</div><p>“writeback-check 的嵌套文件测试被标记为 unsafe。”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p>Diff 记录统一使用 POSIX 风格的 <code>/</code>；若校验时把路径变成 Windows 的 <code>\\</code>，随后又按 <code>/</code> 拆分，就会把整个相对路径当成单一段。修复的关键是区分“规范化相对路径表示”与“本地文件系统访问路径”。</p></div>
+<div class="bubble user"><div class="speaker">USER · STRICT TYPES</div><p>“exactOptionalPropertyTypes 报错，number | undefined 不能赋给 number。”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p>在开启 <code>exactOptionalPropertyTypes</code> 后，<code>originalMode?: number</code> 表示可以不提供属性，但提供时值必须是 number。若代码显式传入 <code>undefined</code>，类型需要明确允许它，或使用条件展开只在有值时提供属性。</p></div>
+<div class="bubble user"><div class="speaker">USER · DIFF TEST</div><p>“相同文本和 Windows/Unix 换行符的测试返回了未修改的行，而不是空数组。”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p>Diff 的职责是显示变化，不是把全部上下文都当成变化。先规范化 CRLF / CR，再判断两组行完全一致；一致时直接返回空数组，避免进入 LCS 回溯逻辑。</p></div>
+<div class="bubble user"><div class="speaker">USER · DEPENDENCY INSTALL</div><p>“Sandbox dependency preparation failed：offline tarball 缺失。”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p>lockfile 固定了依赖版本和解析结果，但离线安装还要求本地 store 中存在所需 tarball。离线可复现性需要提前缓存依赖或准备镜像；当前 CLI 的依赖准备使用 frozen lockfile 与 ignore-scripts，但仍依赖包管理器和网络环境。</p></div>
+<div class="bubble user"><div class="speaker">USER · GIT</div><p>“gitignore 有 node_modules，但是大量文件仍被 Git 追踪。”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p><code>.gitignore</code> 只阻止尚未跟踪的文件被默认加入；已经被 Git 索引跟踪的文件仍会继续显示修改。要停止追踪，需要有意识地从索引移除（例如 <code>git rm --cached</code>）并提交变更，而不是只增加 ignore 规则。</p></div>
+<div class="bubble user"><div class="speaker">USER · PROCESS / CWD</div><p>“const workspaceRoot = process.cwd() 是调用终端开进程吗？switch 是做什么？”</p></div><div class="bubble assistant"><div class="speaker">ENGINEERING LESSON</div><p><code>process.cwd()</code> 返回当前 Node 进程的工作目录，不会自己启动终端或新进程。<code>switch</code> 是按消息 role 等离散值选择不同处理分支的控制语句；在 Provider 中用于把 system/user/assistant/tool 消息转换为不同的 wire format。</p></div>
+</div>
+<h3>这些问题分别锻炼了什么能力？</h3><table><thead><tr><th>问题类型</th><th>底层工程能力</th></tr></thead><tbody><tr><td>Provider / API 协议</td><td>接口抽象、协议适配、外部依赖隔离。</td></tr><tr><td>TypeScript 类型错误</td><td>输入边界、运行时校验与静态类型的一致性。</td></tr><tr><td>Windows 路径与进程</td><td>跨平台抽象、路径规范化、进程生命周期。</td></tr><tr><td>Diff 与基线冲突</td><td>内容寻址、并发状态检测、交付一致性。</td></tr><tr><td>Git ignore 与缓存</td><td>版本控制索引、可复现构建、仓库卫生。</td></tr><tr><td>端到端验证</td><td>从局部函数正确性走向系统行为验证。</td></tr></tbody></table></section>
+
+<section class="section searchable" id="security"><div class="head"><div class="num">16</div><div><h2>安全边界：当前做了什么，不能宣称什么？</h2><p class="muted">这是理解 Harness 工程成熟度时最需要保持准确的部分。</p></div></div>
+<table><thead><tr><th>维度</th><th>当前措施</th><th>剩余风险 / 缺口</th></tr></thead><tbody>
+<tr><td>文件访问</td><td>限制 workspace root、realpath 检查、阻止常见敏感路径、限制文件大小、拒绝符号链接访问。</td><td>文件系统并发竞态仍可能发生；应用层路径检查不等于基于文件描述符的强隔离。</td></tr>
+<tr><td>工具执行</td><td>Registry 只执行已注册 handler；Policy 未知工具默认 deny；edit_file 与 run_check 需要 ask。</td><td>工具本身仍需逐个审计；授权策略不是 OS 权限边界。</td></tr>
+<tr><td>命令执行</td><td>当前 Agent 暴露的是固定检查命令；Runtime 有超时、输出上限、进程树终止。</td><td>进程在宿主机运行；工作目录不是文件访问限制；依赖安装也会访问网络与包源。</td></tr>
+<tr><td>日志</td><td>JSONL 结构化记录，常见 API Key / Bearer 模式脱敏，限制输出与文件权限。</td><td>脱敏模式不覆盖所有秘密；日志可能含任务元数据和错误信息。</td></tr>
+<tr><td>工作区</td><td>副本与源项目分开，排除敏感文件和符号链接，基线 hash 检查。</td><td>不是容器；进程仍拥有宿主机用户的权限；基线 JSON 未签名。</td></tr>
+<tr><td>回写</td><td>显式批准、预检查、逐文件重查、独占创建、临时替换、尽力回滚、后置验证。</td><td>不是多文件原子事务；TOCTOU 与崩溃场景未被彻底消除。</td></tr>
+<tr><td>远程 / 容器</td><td>尚无 Docker / VM / Remote Workspace Driver。</td><td>不适合直接作为不可信代码的强隔离执行环境。</td></tr></tbody></table>
+<h3>用一句话描述当前安全等级</h3><div class="callout green"><strong>准确说法</strong>MiniHarness 具备基础的工具治理、本地副本工作区、变更审查与受控回写机制，能降低误改和意外覆盖风险；但目前没有实现完整的操作系统级执行隔离，不能把它称为生产级安全沙箱。</div>
+<h3>为什么 Docker 可以先放一放？</h3><p>因为学习目标是理解 Harness 的控制面与执行面。当前先把 Agent Loop、Tool Registry、Policy、Runtime、Trace、Workspace、Diff 与 Writeback 串起来，已经形成了一个有价值的 MVP。Docker 是下一层执行环境后端，而不是理解 Agent Loop 的前置条件。</p><p>未来要接 Docker，合理做法是抽象 Environment / Workspace 接口，让本地执行与容器执行共享上层 Agent Core；而不是把 Docker 调用直接散落进每个工具 handler。</p></section>
+
+<section class="section searchable" id="gaps"><div class="head"><div class="num">17</div><div><h2>完成了什么，没完成什么？</h2><p class="muted">以当前上传源码为准，不把路线图当成已实现功能。</p></div></div>
+<div class="grid2"><div class="card"><span class="pill green">Implemented · 已实现基础版本</span><h3>当前 MVP</h3><ul class="checklist"><li>Agent Loop 与单次运行消息历史</li><li>Provider 接口、真实 HTTP Provider、Scripted Provider</li><li>工具注册、参数 JSON 解析和工具分发</li><li>allow / ask / deny 权限策略与 CLI 审批</li><li>文件读、写、搜索、目录浏览工具</li><li>固定 typecheck / test 检查工具</li><li>子进程超时、输出上限、终止处理</li><li>JSONL Trace 写入、读取与摘要</li><li>本地临时工作区与敏感文件排除</li><li>基线 hash、文件 Diff、行级 Diff</li><li>写回前冲突检查、逐文件审批、选择性回写</li><li>回写后差异验证与尽力回滚</li><li>单元测试与聊天记录中的端到端验收</li></ul></div>
+<div class="card"><span class="pill amber">Not yet · 尚未完成</span><h3>生产级或后续能力</h3><ul class="checklist pending"><li>Docker / VM / 远程 Workspace 后端</li><li>操作系统级文件、网络、权限与资源隔离</li><li>跨任务长期 Memory 与检索注入</li><li>任务暂停、持久化状态、崩溃后恢复</li><li>多 Agent / 并行任务编排</li><li>复杂计划树、任务分解与预算控制</li><li>完整的回滚日志与恢复工具</li><li>更强的并发竞态与恶意文件系统测试</li><li>正式 README、架构决策记录与威胁模型</li><li>任务完成率、成本、时延等系统级评测</li><li>Web UI / GUI 轨迹回放</li><li>正式发布与可复现的安装说明</li></ul></div></div>
+<h3>“整体搭建完成”应该怎么理解？</h3><p>如果目标是<strong>从零理解并搭建一个能执行真实任务的本地 Agent Harness MVP</strong>，当前主体已经完成。如果目标是<strong>安全地执行任意不可信代码、在多任务环境长期运行、支持远程弹性资源和恢复</strong>，那仍然有明显的生产化工作。</p><p>二者不是互相否定：MVP 的价值在于先把核心控制流和交付闭环做正确，再按真实需求添加隔离、恢复、记忆和编排能力。</p></section>
+
+<section class="section searchable" id="commands"><div class="head"><div class="num">18</div><div><h2>开发与运行命令手册</h2><p class="muted">适用于 Windows CMD；命令需在项目根目录执行。</p></div></div>
+<h3>基础检查</h3><pre><code>pnpm typecheck
+pnpm test
+git diff --check</code></pre>
+<h3>运行 Agent</h3><pre><code>pnpm dev -- "请读取 src/agent/agent.ts，解释 Agent Loop 的执行过程。只读取文件，不要修改任何内容。"</code></pre>
+<h3>查看差异</h3><pre><code>pnpm dev -- --diff "C:\Users\&lt;USER&gt;\AppData\Local\Temp\miniharness-sandboxes\run-&lt;实际目录名&gt;"</code></pre>
+<h3>交互式回写</h3><pre><code>pnpm dev -- --apply "C:\Users\&lt;USER&gt;\AppData\Local\Temp\miniharness-sandboxes\run-&lt;实际目录名&gt;"</code></pre>
+<h3>读取最近轨迹摘要</h3><pre><code>pnpm trace
+pnpm trace ".miniharness/traces/&lt;trace-file&gt;.jsonl"</code></pre>
+<h3>检查 Git 状态</h3><pre><code>git status --short
+git diff --stat
+git diff --cached --stat
+git log -5 --oneline</code></pre>
+<div class="callout amber"><strong>路径提醒</strong>不要复制文档中的示例工作区目录名。每次任务会生成不同的 <code>run-*</code> 路径；应以终端实际输出为准。运行 <code>--diff</code> 和 <code>--apply</code> 时，要从原始项目根目录启动 CLI，因为它用当前工作目录解析 sourceRoot。</div></section>
+
+<section class="section searchable" id="next"><div class="head"><div class="num">19</div><div><h2>下一阶段建议：先整理，再扩展</h2><p class="muted">不需要立刻上 Docker，也不建议现在就把向量数据库塞进项目。</p></div></div>
+<div class="timeline">
+<div class="titem"><div class="when">NEXT 1 · FREEZE</div><h3>冻结当前 MVP 并建立 Git 检查点</h3><p>运行 typecheck、全量测试与 diff check；检查被跟踪的缓存文件；确认 .env 未进入 Git；提交一版可复现代码。</p></div>
+<div class="titem"><div class="when">NEXT 2 · EXPLAIN</div><h3>逐文件复盘 Agent Core 与工具调用链</h3><p>从 <code>agent.ts</code>、<code>types.ts</code>、<code>registry.ts</code> 开始，画出一次 tool call 从模型响应到执行结果回流的完整时序图。</p></div>
+<div class="titem"><div class="when">NEXT 3 · DOCUMENT</div><h3>补充 README 与架构决策记录</h3><p>记录本地运行步骤、配置变量名、命令示例、已知限制、模块职责、测试命令和安全边界。本文可作为长版设计文档底稿。</p></div>
+<div class="titem"><div class="when">OPTIONAL · MEMORY</div><h3>需要跨任务经验时，再实现最小 MemoryStore</h3><p>先做结构化的 JSON / SQLite 记忆，带来源、时间、项目范围、可信度与过期字段；先验证记忆是否真的提升后续任务，再决定是否引入向量检索。</p></div>
+<div class="titem"><div class="when">OPTIONAL · DOCKER</div><h3>需要执行不可信代码时，再抽象环境后端</h3><p>先定义统一 Environment API，再实现 LocalDriver 与 DockerDriver。容器要明确网络策略、非 root 用户、只读挂载、CPU/内存/PID 限制和依赖缓存策略。</p></div>
+<div class="titem"><div class="when">FUTURE · EVALUATION</div><h3>从“能运行”走向“能量化比较”</h3><p>构造任务集，记录成功率、平均步骤、工具失败率、运行时长、成本、回滚次数和人工审批负担，才能比较策略或执行后端的收益。</p></div>
+</div>
+<h3>建议的后续系统分层</h3><figure class="diagram"><svg viewBox="0 0 900 300" role="img" aria-label="未来环境抽象路线图"><rect x="270" y="15" width="360" height="52" rx="13" fill="#202123"/><text x="450" y="46" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">Agent Core + Policy + Memory</text><path d="M450 67 V94" stroke="#8b929b" stroke-width="1.8"/><rect x="220" y="98" width="460" height="55" rx="13" fill="#e7f7f1" stroke="#8bd7bf"/><text x="450" y="121" text-anchor="middle" fill="#087f63" font-size="15" font-weight="700">Environment / Workspace Interface</text><text x="450" y="140" text-anchor="middle" fill="#14532d" font-size="11">文件操作 · 命令执行 · 创建 · 清理 · 快照</text><path d="M450 153 V179 M150 179 H750 M150 179 V200 M450 179 V200 M750 179 V200" fill="none" stroke="#8b929b" stroke-width="1.5"/><rect x="40" y="204" width="220" height="65" rx="13" fill="#eff6ff" stroke="#bfdbfe"/><text x="150" y="229" text-anchor="middle" fill="#1d4ed8" font-size="14" font-weight="700">Local Driver</text><text x="150" y="249" text-anchor="middle" fill="#1e40af" font-size="11">当前本地工作区</text><rect x="340" y="204" width="220" height="65" rx="13" fill="#fffbeb" stroke="#f5d58a"/><text x="450" y="229" text-anchor="middle" fill="#92400e" font-size="14" font-weight="700">Docker Driver</text><text x="450" y="249" text-anchor="middle" fill="#92400e" font-size="11">后续可选容器后端</text><rect x="640" y="204" width="220" height="65" rx="13" fill="#f5f3ff" stroke="#ddd6fe"/><text x="750" y="229" text-anchor="middle" fill="#6d28d9" font-size="14" font-weight="700">Remote Driver</text><text x="750" y="249" text-anchor="middle" fill="#5b21b6" font-size="11">远程执行 / 云端工作区</text></svg><figcaption>图 8 · 未来扩展的建议形态。Docker 与远程执行是可替换的环境后端，不必渗透进 Agent Core。</figcaption></figure></section>
+
+<section class="section searchable" id="glossary"><div class="head"><div class="num">20</div><div><h2>术语表：把项目语言统一起来</h2><p class="muted">以后读 OpenCode 或其他 Harness 时，可以沿用这套概念对照。</p></div></div>
+<table><thead><tr><th>术语</th><th>在本项目里的含义</th></tr></thead><tbody>
+<tr><td>Agent Harness</td><td>围绕模型建立的运行框架：上下文管理、工具执行、策略、状态、可观测性与结果交付。</td></tr>
+<tr><td>Agent Loop</td><td>模型请求、工具调用、工具结果回填、下一轮决策，直到结束条件触发的控制循环。</td></tr>
+<tr><td>Provider</td><td>模型服务适配层，把内部消息与外部 API 协议连接起来。</td></tr>
+<tr><td>Tool Call</td><td>模型提出的结构化工具调用请求；不是工具已成功执行的证明。</td></tr>
+<tr><td>Registry</td><td>工具定义与执行 handler 的注册表，按名称查找并分发。</td></tr>
+<tr><td>Policy</td><td>决定工具调用是允许、需审批还是拒绝的规则。</td></tr>
+<tr><td>Runtime</td><td>管理进程、超时、输出和执行结果的底层机制。</td></tr>
+<tr><td>Workspace / Sandbox</td><td>当前任务操作的工作区副本；本项目是本地临时目录，不是 OS 级沙箱。</td></tr>
+<tr><td>Baseline</td><td>工作区创建时记录的文件清单和 hash，用于检查源文件是否发生外部变化。</td></tr>
+<tr><td>Diff</td><td>比较源目录与工作区，识别新增、修改、删除文件，并渲染行级变化。</td></tr>
+<tr><td>Writeback</td><td>把经过审批的工作区文件变更应用回原项目。</td></tr>
+<tr><td>TOCTOU</td><td>Time-of-check to time-of-use：检查状态与实际使用之间发生变化导致的竞态。</td></tr>
+<tr><td>Trace</td><td>描述执行过程的持久化事件记录，供复盘和统计。</td></tr>
+<tr><td>Working Memory</td><td>当前 run 的消息历史，保存在内存并用于后续模型请求。</td></tr>
+<tr><td>Long-term Memory</td><td>跨任务保存、检索、更新并重新注入模型上下文的经验系统；当前尚未实现。</td></tr>
+<tr><td>Docker Driver</td><td>未来可能新增的容器执行后端；当前代码中不存在。</td></tr>
+</tbody></table></section>
+
+<section class="section searchable" id="closing"><div class="head"><div class="num">END</div><div><h2>最后总结：你实际搭建出来的是什么？</h2><p class="muted">一份可继续演化的工程原型，而不是一个黑盒脚手架。</p></div></div>
+<p class="lead">你搭建的不只是“能调用 DeepSeek 的脚本”，而是一个具备清晰边界的本地 Agent Harness 原型：模型负责提出下一步，Agent Loop 管理决策循环，Registry 与 Policy 控制工具执行，Runtime 管理进程，Trace 保存运行证据，Workspace 把编辑与原项目分离，Diff 与 Baseline 识别变更和冲突，Writeback 把经过批准的修改交付回原项目。</p>
+<p>这段开发最值得保留的经验，不是某一段 TypeScript 代码，而是工程问题的分层方法：当系统出错时，先用真实输出定位原因；把外部协议、执行机制、权限决策和状态管理分开；为关键不变量写测试；最后用端到端流程证明各模块能够共同工作。</p>
+<div class="callout green"><strong>当前结论</strong>本地 Agent Harness MVP 的主要闭环已经建立。Docker 可以暂缓；长期 Memory 尚未实现；生产级安全隔离、崩溃恢复和完整的系统级评测仍是后续工作。下一步最合理的动作是冻结版本、整理 Git 与 README，再按真实需求决定是否扩展。</div>
+<p class="small">文档版本：基于 2026-10-21 对话与上传源码快照重建。为避免泄漏，未读取或嵌入 .env 的任何值。项目细节以当前 ZIP 中可见的代码为准；若本地代码之后有变化，应重新核对。</p></section>
+<div class="footer">MiniHarness · Source-based engineering journal · Self-contained HTML · No external assets or network requests</div>
+</main></div>
+<script>
+const search=document.getElementById('search');
+search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();document.querySelectorAll('.searchable').forEach(s=>s.classList.toggle('hide',!!q&&!s.innerText.toLowerCase().includes(q)));document.querySelectorAll('.toc a').forEach(a=>{const t=document.querySelector(a.getAttribute('href'));a.classList.toggle('hide',!!q&&(!t||t.classList.contains('hide')));});});
+document.querySelectorAll('pre').forEach(pre=>{const b=document.createElement('button');b.className='copy';b.type='button';b.textContent='复制代码';b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(pre.querySelector('code')?.innerText||pre.innerText);b.textContent='已复制';setTimeout(()=>b.textContent='复制代码',1200);}catch{b.textContent='请手动复制';}});pre.appendChild(b);});
+let collapsed=false;function toggleAll(){collapsed=!collapsed;document.querySelectorAll('.section').forEach(s=>{if(s.id==='overview'||s.id==='snapshot')return;Array.from(s.children).filter(n=>!n.classList.contains('head')).forEach(n=>n.classList.toggle('hide',collapsed));});document.querySelector('.actions .primary').textContent=collapsed?'展开全部细节':'收起细节';}
+</script></body></html>
