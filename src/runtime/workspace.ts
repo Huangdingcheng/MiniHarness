@@ -38,6 +38,8 @@ function shouldExclude(relativePath: string): boolean {
   return parts.some(
     (part) =>
       EXCLUDED_DIRECTORIES.has(part) ||
+      part === ".npmrc" ||
+      part === ".pnpmfile.cjs" ||
       part === ".env" ||
       part.startsWith(".env."),
   );

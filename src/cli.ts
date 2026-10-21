@@ -1,3 +1,11 @@
+import {
+  createSandboxWorkspace,
+} from "./runtime/workspace.js";
+
+import {
+  runProcess,
+} from "./runtime/process.js";
+
 import { createInterface } from "node:readline/promises";
 
 import {
@@ -23,6 +31,55 @@ import {
   registerFileSystemTools,
 } from "./tools/filesystem.js";
 import { registerCheckTool } from "./tools/check.js";
+
+async function prepareSandboxDependencies(
+  workspaceRoot: string,
+): Promise<void> {
+  console.log(
+    "[sandbox] Preparing dependencies...",
+  );
+
+  const isWindows = process.platform === "win32";
+
+  const result = await runProcess({
+    command: isWindows ? "cmd.exe" : "pnpm",
+
+    args: isWindows
+      ? [
+          "/d",
+          "/s",
+          "/c",
+          "pnpm install --frozen-lockfile --ignore-scripts",
+        ]
+      : [
+          "install",
+          "--frozen-lockfile",
+          "--ignore-scripts",
+        ],
+
+    cwd: workspaceRoot,
+    timeoutMs: 120_000,
+    maxOutputChars: 8_000,
+  });
+
+  if (result.timedOut || result.exitCode !== 0) {
+    throw new Error(
+      [
+        "Sandbox dependency preparation failed.",
+        `Exit code: ${result.exitCode ?? "null"}`,
+        `Timed out: ${result.timedOut}`,
+        "",
+        "STDOUT:",
+        result.stdout || "(empty)",
+        "",
+        "STDERR:",
+        result.stderr || "(empty)",
+      ].join("\n"),
+    );
+  }
+
+  console.log("[sandbox] Dependencies ready.");
+}
 
 function previewValue(value: unknown): string {
   if (typeof value !== "string") {
@@ -118,13 +175,29 @@ async function main(): Promise<void> {
   }
 
   // The current working directory is the workspace boundary.
-  const workspaceRoot = process.cwd();
 
-  const traceWriter = createTraceWriter(workspaceRoot);
+  const sourceRoot = process.cwd();
+
+  const sandbox =
+    await createSandboxWorkspace(sourceRoot);
+
+  const workspaceRoot = sandbox.workspaceRoot;
+
+  console.log(`[sandbox] Source: ${sourceRoot}`);
+  console.log(`[sandbox] Workspace: ${workspaceRoot}`);
+
+  const traceWriter = createTraceWriter(sourceRoot);
 
   console.log(`[trace file] ${traceWriter.filePath}`);
 
   const registry = new ToolRegistry();
+
+  try {
+    await prepareSandboxDependencies(workspaceRoot);
+  } catch (error) {
+    await sandbox.cleanup();
+    throw error;
+  }
 
   // Register our own read-only filesystem tools.
   await registerFileSystemTools(
@@ -133,9 +206,9 @@ async function main(): Promise<void> {
   );
 
   await registerCheckTool(
-  registry,
-  workspaceRoot,
-);
+    registry,
+    workspaceRoot,
+  );
 
   // Keep echo as a small diagnostic tool.
   const echoDefinition: ToolDefinition = {
@@ -310,6 +383,11 @@ async function main(): Promise<void> {
 
   console.log(
     `\n[status] ${result.status}; model steps: ${result.steps}`,
+  );
+
+  // 新增：告知用户沙箱工作区的位置，供后续检查修改
+  console.log(
+    `[sandbox] Workspace retained for review: ${workspaceRoot}`,
   );
 }
 

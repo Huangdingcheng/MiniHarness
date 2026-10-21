@@ -98,6 +98,16 @@ describe("SandboxWorkspace", () => {
       "{}",
     );
 
+    await writeFile(
+      path.join(sourceRoot, ".npmrc"),
+      "//registry.example/:_authToken=test-token",
+    );
+
+    await writeFile(
+      path.join(sourceRoot, ".pnpmfile.cjs"),
+      "module.exports = {};",
+    );
+
     const sandbox =
       await createSandboxWorkspace(sourceRoot);
 
@@ -136,6 +146,18 @@ describe("SandboxWorkspace", () => {
       expect(
         existsSync(
           path.join(sandbox.workspaceRoot, ".miniharness"),
+        ),
+      ).toBe(false);
+
+      expect(
+        existsSync(
+          path.join(sandbox.workspaceRoot, ".npmrc"),
+        ),
+      ).toBe(false);
+
+      expect(
+        existsSync(
+          path.join(sandbox.workspaceRoot, ".pnpmfile.cjs"),
         ),
       ).toBe(false);
 
