@@ -1,8 +1,13 @@
+import { randomUUID } from "node:crypto";
+
 import {
   readdir,
   readFile,
   realpath,
   stat,
+  rename,
+  unlink,
+  writeFile,
 } from "node:fs/promises";
 
 import path from "node:path";
@@ -211,6 +216,36 @@ const searchFilesDefinition: ToolDefinition = {
   },
 };
 
+
+const editFileDefinition: ToolDefinition = {
+  type: "function",
+  function: {
+    name: "edit_file",
+    description:
+      "Replace exactly one occurrence of specified text " +
+      "in an existing workspace file. Read the file first. " +
+      "If the old text is missing or ambiguous, no changes are made.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Workspace-relative file path.",
+        },
+        old_text: {
+          type: "string",
+          description: "Exact existing text to replace.",
+        },
+        new_text: {
+          type: "string",
+          description: "Replacement text.",
+        },
+      },
+      required: ["path", "old_text", "new_text"],
+      additionalProperties: false,
+    },
+  },
+};
 
 export async function registerFileSystemTools(
   registry: ToolRegistry,
@@ -527,4 +562,125 @@ export async function registerFileSystemTools(
     },
   );
 
+  registry.register(
+    editFileDefinition,
+    async (args) => {
+      const rawPath = args.path;
+      const oldText = args.old_text;
+      const newText = args.new_text;
+
+      if (
+        typeof rawPath !== "string" ||
+        rawPath.trim() === ""
+      ) {
+        throw new Error("path must be a non-empty string.");
+      }
+
+      if (
+        typeof oldText !== "string" ||
+        oldText.length === 0
+      ) {
+        throw new Error("old_text must be a non-empty string.");
+      }
+
+      if (typeof newText !== "string") {
+        throw new Error("new_text must be a string.");
+      }
+
+      if (
+        Buffer.byteLength(oldText, "utf8") > MAX_FILE_BYTES ||
+        Buffer.byteLength(newText, "utf8") > MAX_FILE_BYTES
+      ) {
+        throw new Error("Edit text exceeds the size limit.");
+      }
+
+      // Reuse the existing workspace boundary checks.
+      const target = await resolveWorkspacePath(
+        root,
+        rawPath,
+      );
+
+      const info = await stat(target);
+
+      if (!info.isFile()) {
+        throw new Error("Path is not a regular file.");
+      }
+
+      if (info.size > MAX_FILE_BYTES) {
+        throw new Error(
+          `File exceeds the ${MAX_FILE_BYTES}-byte limit.`,
+        );
+      }
+
+      const original = await readFile(target, "utf8");
+
+      if (original.includes("\0")) {
+        throw new Error(
+          "Binary files cannot be edited by this tool.",
+        );
+      }
+
+      // Count exact, non-overlapping occurrences.
+      let occurrences = 0;
+      let offset = 0;
+
+      while (true) {
+        const index = original.indexOf(oldText, offset);
+
+        if (index === -1) {
+          break;
+        }
+
+        occurrences += 1;
+        offset = index + oldText.length;
+      }
+
+      if (occurrences !== 1) {
+        throw new Error(
+          `Expected exactly one match for old_text, ` +
+          `found ${occurrences}. No changes made.`,
+        );
+      }
+
+      const updated = original.replace(oldText, newText);
+
+      if (
+        Buffer.byteLength(updated, "utf8") > MAX_FILE_BYTES
+      ) {
+        throw new Error(
+          `Updated file exceeds the ${MAX_FILE_BYTES}-byte limit.`,
+        );
+      }
+
+      // Write a temporary file in the same directory, then rename.
+      const tempPath = path.join(
+        path.dirname(target),
+        `.${path.basename(target)}.miniharness-${randomUUID()}.tmp`,
+      );
+
+      try {
+        await writeFile(tempPath, updated, {
+          encoding: "utf8",
+          flag: "wx",
+          mode: info.mode & 0o777,
+        });
+
+        await rename(tempPath, target);
+      } catch (error) {
+        await unlink(tempPath).catch(() => undefined);
+
+        const reason =
+          error instanceof Error
+            ? error.message
+            : String(error);
+
+        throw new Error(`Failed to update file: ${reason}`);
+      }
+
+      return [
+        `File updated successfully: ${path.relative(root, target)}`,
+        "Replaced exactly one occurrence.",
+      ].join("\n");
+    },
+  );
 }

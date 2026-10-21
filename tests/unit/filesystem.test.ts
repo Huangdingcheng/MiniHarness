@@ -141,4 +141,73 @@ it("does not expose secrets from blocked files", async () => {
   expect(output).toContain("No matches found.");
 });
 
+
+it("replaces exactly one occurrence in a file", async () => {
+  const registry = await setup();
+
+  const result = await registry.execute(
+    "edit_file",
+    JSON.stringify({
+      path: "src/example.ts",
+      old_text: "answer = 42",
+      new_text: "answer = 43",
+    }),
+  );
+
+  expect(result).toContain("File updated successfully");
+
+  const updated = await readFile(
+    path.join(root, "src", "example.ts"),
+    "utf8",
+  );
+
+  expect(updated).toContain("answer = 43");
+  expect(updated).not.toContain("answer = 42");
+});
+
+it("rejects ambiguous edits without changing the file", async () => {
+  const registry = await setup();
+
+  const filePath = path.join(root, "src", "example.ts");
+
+  await writeFile(
+    filePath,
+    "const value = 1;\nconst value = 1;\n",
+  );
+
+  await expect(
+    registry.execute(
+      "edit_file",
+      JSON.stringify({
+        path: "src/example.ts",
+        old_text: "const value = 1;",
+        new_text: "const value = 2;",
+      }),
+    ),
+  ).rejects.toThrow(
+    "Expected exactly one match for old_text, found 2.",
+  );
+
+  const unchanged = await readFile(filePath, "utf8");
+
+  expect(unchanged).toBe(
+    "const value = 1;\nconst value = 1;\n",
+  );
+});
+
+it("blocks edits to .env", async () => {
+  const registry = await setup();
+
+  await expect(
+    registry.execute(
+      "edit_file",
+      JSON.stringify({
+        path: ".env",
+        old_text: "LLM_API_KEY",
+        new_text: "OTHER_KEY",
+      }),
+    ),
+  ).rejects.toThrow("Access to this path is blocked.");
+});
+
 });
