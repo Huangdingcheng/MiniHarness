@@ -28,6 +28,10 @@ export type AssistantMessage = {
   role: "assistant";
   content: string | null;
   tool_calls?: ToolCall[];
+
+  // DeepSeek 思考模式的协议状态。
+  // 由 Provider 保存和回传，不输出到普通日志。
+  reasoning_content?: string | null;
 };
 
 export type ToolMessage = {

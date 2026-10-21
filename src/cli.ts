@@ -1,3 +1,12 @@
+import { createInterface } from "node:readline/promises";
+
+import {
+  getToolPolicyDecision,
+} from "./tools/policy.js";
+
+import type {
+  ToolAuthorizationRequest,
+} from "./agent/agent.js";
 import {
   createTraceWriter,
 } from "./observability/trace-writer.js";
@@ -14,6 +23,88 @@ import {
   registerFileSystemTools,
 } from "./tools/filesystem.js";
 import { registerCheckTool } from "./tools/check.js";
+
+function previewValue(value: unknown): string {
+  if (typeof value !== "string") {
+    return String(value ?? "(missing)");
+  }
+
+  return value
+    .replace(/\s+/g, " ")
+    .slice(0, 120);
+}
+
+async function authorizeToolCall(
+  request: ToolAuthorizationRequest,
+): Promise<boolean> {
+  const { toolName, argumentsJson } = request;
+  const decision = getToolPolicyDecision(toolName);
+
+  if (decision === "allow") {
+    console.log(`[policy] auto-allowed: ${toolName}`);
+    return true;
+  }
+
+  if (decision === "deny") {
+    console.error(`[policy] blocked unknown tool: ${toolName}`);
+    return false;
+  }
+
+  let args: Record<string, unknown> = {};
+
+  try {
+    const parsed: unknown = JSON.parse(argumentsJson);
+
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      args = parsed as Record<string, unknown>;
+    }
+  } catch {
+    console.error(
+      `[policy] blocked invalid arguments: ${toolName}`,
+    );
+    return false;
+  }
+
+  let summary = "";
+
+  if (toolName === "edit_file") {
+    summary = [
+      `Path: ${previewValue(args.path)}`,
+      `Old text: ${previewValue(args.old_text)}`,
+      `New text: ${previewValue(args.new_text)}`,
+    ].join("\n");
+  } else if (toolName === "run_check") {
+    summary = `Check: ${previewValue(args.check)}`;
+  }
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    const answer = await rl.question(
+      `\n[approval required]\n` +
+      `Tool: ${toolName}\n` +
+      `${summary}\n` +
+      `Approve this operation? [y/N] `,
+    );
+
+    const approved = /^y(es)?$/i.test(answer.trim());
+
+    console.log(
+      `[policy] ${approved ? "approved" : "denied"}: ${toolName}`,
+    );
+
+    return approved;
+  } finally {
+    rl.close();
+  }
+}
 
 async function main(): Promise<void> {
   const apiKey = process.env.LLM_API_KEY?.trim();
@@ -114,7 +205,7 @@ async function main(): Promise<void> {
 
         console.error(`[trace persistence error] ${reason}`);
       }
-      
+
       switch (event.type) {
         case "run_started":
           console.log(
@@ -172,6 +263,8 @@ async function main(): Promise<void> {
           break;
       }
     },
+
+    authorizeTool: authorizeToolCall,
 
   });
 

@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { runProcess } from "../runtime/process.js";
+
 import { realpath, stat } from "node:fs/promises";
 
 import type { ToolDefinition } from "../model/types.js";
@@ -8,38 +9,6 @@ const MAX_OUTPUT_CHARS = 10_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 type CheckName = "typecheck" | "test";
-
-type CapturedOutput = {
-  text: string;
-  truncated: boolean;
-};
-
-function appendCapped(
-  current: CapturedOutput,
-  chunk: Buffer | string,
-): CapturedOutput {
-  const incoming = chunk.toString();
-  const remaining = MAX_OUTPUT_CHARS - current.text.length;
-
-  if (remaining <= 0) {
-    return {
-      ...current,
-      truncated: true,
-    };
-  }
-
-  if (incoming.length > remaining) {
-    return {
-      text: current.text + incoming.slice(0, remaining),
-      truncated: true,
-    };
-  }
-
-  return {
-    text: current.text + incoming,
-    truncated: current.truncated,
-  };
-}
 
 const checkDefinition: ToolDefinition = {
   type: "function",
@@ -80,138 +49,82 @@ export async function registerCheckTool(
   registry.register(checkDefinition, async (args) => {
     const check = args.check;
 
+    // 1. 校验模型请求，只允许两种检查任务
     if (check !== "typecheck" && check !== "test") {
       throw new Error(
         "Unsupported check. Allowed values: typecheck, test.",
       );
     }
 
-    // Never interpolate model-supplied strings into a shell command.
+    // 2. 根据操作系统选择固定命令
+    // 不允许模型提供任意命令字符串
     const command =
       check === "typecheck"
         ? "pnpm typecheck"
         : "pnpm test";
 
-    const stdout: CapturedOutput = {
-      text: "",
-      truncated: false,
-    };
+    // 3. 委托统一 Runtime 管理子进程
+    const result =
+      process.platform === "win32"
+        ? await runProcess({
+            command: "cmd.exe",
+            args: ["/d", "/s", "/c", command],
+            cwd: root,
+            timeoutMs: DEFAULT_TIMEOUT_MS,
+            maxOutputChars: MAX_OUTPUT_CHARS,
+          })
+        : await runProcess({
+            command: "pnpm",
+            args: [check],
+            cwd: root,
+            timeoutMs: DEFAULT_TIMEOUT_MS,
+            maxOutputChars: MAX_OUTPUT_CHARS,
+          });
 
-    const stderr: CapturedOutput = {
-      text: "",
-      truncated: false,
-    };
+    // 4. 根据真实退出状态判断结果
+    const status = result.timedOut
+      ? "TIMEOUT"
+      : result.exitCode === 0
+        ? "PASS"
+        : "FAIL";
 
-    let timedOut = false;
+    const sections = [
+      `Check: ${check}`,
+      `Status: ${status}`,
+      `Exit code: ${result.exitCode ?? "null"}`,
+    ];
 
-    return await new Promise<string>((resolve, reject) => {
-      // On Windows, pnpm is commonly exposed as pnpm.cmd.
-      // cmd.exe is used only with one of the two fixed commands above.
-      const child =
-        process.platform === "win32"
-          ? spawn(
-              "cmd.exe",
-              ["/d", "/s", "/c", command],
-              {
-                cwd: root,
-                windowsHide: true,
-                stdio: ["ignore", "pipe", "pipe"],
-              },
-            )
-          : spawn(
-              "pnpm",
-              [check],
-              {
-                cwd: root,
-                stdio: ["ignore", "pipe", "pipe"],
-              },
-            );
+    if (result.signal) {
+      sections.push(`Signal: ${result.signal}`);
+    }
 
-      let settled = false;
+    sections.push(
+      "",
+      "STDOUT:",
+      result.stdout || "(empty)",
+      "",
+      "STDERR:",
+      result.stderr || "(empty)",
+    );
 
-      const timer = setTimeout(() => {
-        timedOut = true;
-        child.kill();
-      }, DEFAULT_TIMEOUT_MS);
+    if (
+      result.stdoutTruncated ||
+      result.stderrTruncated
+    ) {
+      sections.push(
+        "",
+        "[Output truncated to protect model context.]",
+      );
+    }
 
-      const finish = (
-        callback: () => void,
-      ): void => {
-        if (settled) {
-          return;
-        }
+    if (result.timedOut) {
+      sections.push(
+        "",
+        "The check exceeded the time limit.",
+      );
+    }
 
-        settled = true;
-        clearTimeout(timer);
-        callback();
-      };
-
-      child.stdout?.on("data", (chunk: Buffer | string) => {
-        const captured = appendCapped(stdout, chunk);
-        stdout.text = captured.text;
-        stdout.truncated = captured.truncated;
-      });
-
-      child.stderr?.on("data", (chunk: Buffer | string) => {
-        const captured = appendCapped(stderr, chunk);
-        stderr.text = captured.text;
-        stderr.truncated = captured.truncated;
-      });
-
-      child.on("error", (error) => {
-        finish(() => {
-          reject(
-            new Error(
-              `Unable to start check "${check}": ${error.message}`,
-            ),
-          );
-        });
-      });
-
-      child.on("close", (code, signal) => {
-        finish(() => {
-          const status = timedOut
-            ? "TIMEOUT"
-            : code === 0
-              ? "PASS"
-              : "FAIL";
-
-          const sections = [
-            `Check: ${check}`,
-            `Status: ${status}`,
-            `Exit code: ${code ?? "null"}`,
-          ];
-
-          if (signal) {
-            sections.push(`Signal: ${signal}`);
-          }
-
-          sections.push(
-            "",
-            "STDOUT:",
-            stdout.text || "(empty)",
-            "",
-            "STDERR:",
-            stderr.text || "(empty)",
-          );
-
-          if (stdout.truncated || stderr.truncated) {
-            sections.push(
-              "",
-              "[Output truncated to protect model context.]",
-            );
-          }
-
-          if (timedOut) {
-            sections.push(
-              "",
-              "The check exceeded the time limit.",
-            );
-          }
-
-          resolve(sections.join("\n"));
-        });
-      });
-    });
+    // 5. 将执行结果返回给 Agent
+    return sections.join("\n");
   });
 }

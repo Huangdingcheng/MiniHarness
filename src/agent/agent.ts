@@ -66,7 +66,17 @@ export type AgentRunResult = {
   messages: ChatMessage[];
 };
 
+export type ToolAuthorizationRequest = {
+  toolName: string;
+  argumentsJson: string;
+};
+
+export type ToolAuthorizer = (
+  request: ToolAuthorizationRequest,
+) => Promise<boolean>;
+
 export type AgentOptions = {
+  authorizeTool?: ToolAuthorizer;
   systemPrompt?: string;
   maxSteps?: number;
   onEvent?: (event: AgentEvent) => void;
@@ -85,6 +95,9 @@ export class Agent {
   private readonly onEvent:
     | ((event: AgentEvent) => void)
     | undefined;
+  private readonly authorizeTool:
+    | ToolAuthorizer
+    | undefined;
 
   constructor(
     private readonly provider: ModelProvider,
@@ -97,6 +110,7 @@ export class Agent {
       options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
 
     this.onEvent = options.onEvent;
+    this.authorizeTool = options.authorizeTool;
 
     if (
       !Number.isInteger(this.maxSteps) ||
@@ -228,10 +242,25 @@ export class Agent {
           let ok = true;
 
           try {
-            content = await this.registry.execute(
-              call.function.name,
-              call.function.arguments,
-            );
+            const approved = this.authorizeTool
+              ? await this.authorizeTool({
+                  toolName: call.function.name,
+                  argumentsJson: call.function.arguments,
+                })
+              : true;
+
+            if (!approved) {
+              ok = false;
+
+              content =
+                `Tool execution denied by policy or user approval: ` +
+                `${call.function.name}.`;
+            } else {
+              content = await this.registry.execute(
+                call.function.name,
+                call.function.arguments,
+              );
+            }
           } catch (error) {
             ok = false;
 

@@ -280,5 +280,45 @@ describe("Agent", () => {
       expect(finalEvent.steps).toBe(1);
     }
   });
+  
+  it("does not execute a tool when authorization is denied", async () => {
+    const provider = new ScriptedModelProvider([
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [echoCall],
+      },
+      {
+        role: "assistant",
+        content: "The tool was not executed.",
+      },
+    ]);
+
+    const agent = new Agent(
+      provider,
+      createEchoRegistry(),
+      {
+        maxSteps: 3,
+        authorizeTool: async () => false,
+      },
+    );
+
+    const result = await agent.run(
+      "Try to call echo.",
+    );
+
+    expect(result.status).toBe("completed");
+    expect(result.finalMessage).toBe(
+      "The tool was not executed.",
+    );
+
+    const toolMessage = result.messages.find(
+      (message) => message.role === "tool",
+    );
+
+    expect(toolMessage?.content).toContain(
+      "Tool execution denied",
+    );
+  });
 
 });

@@ -43,6 +43,9 @@ function toWireMessage(
       return {
         role: "assistant",
         content: message.content,
+        ...(message.reasoning_content !== undefined
+          ? { reasoning_content: message.reasoning_content }
+          : {}),
         ...(message.tool_calls
           ? { tool_calls: message.tool_calls }
           : {}),
@@ -200,6 +203,22 @@ export class OpenAICompatibleProvider
 
     const rawContent = rawMessage.content;
 
+    const rawReasoningContent =
+      rawMessage.reasoning_content;
+
+    let reasoningContent: string | null | undefined;
+
+    if (
+      rawReasoningContent === null ||
+      typeof rawReasoningContent === "string"
+    ) {
+      reasoningContent = rawReasoningContent;
+    } else if (rawReasoningContent !== undefined) {
+      throw new Error(
+        "Invalid model response: reasoning_content must be a string or null.",
+      );
+    }
+
     if (
       rawContent !== null &&
       rawContent !== undefined &&
@@ -282,6 +301,9 @@ export class OpenAICompatibleProvider
       content,
       ...(toolCalls.length > 0
         ? { tool_calls: toolCalls }
+        : {}),
+      ...(reasoningContent !== undefined
+        ? { reasoning_content: reasoningContent }
         : {}),
     };
   }
