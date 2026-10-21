@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { Agent } from "../../src/agent/agent.js";
+import {
+  Agent,
+  type AgentEvent,
+} from "../../src/agent/agent.js";
 
 import {
   ScriptedModelProvider,
@@ -185,4 +188,58 @@ describe("Agent", () => {
       (message) => message.role === "tool",
     )).toBe(true);
   });
+  
+  it("emits lifecycle events in execution order", async () => {
+    const events: AgentEvent[] = [];
+
+    const provider = new ScriptedModelProvider([
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [echoCall],
+      },
+      {
+        role: "assistant",
+        content: "The tool returned hello.",
+      },
+    ]);
+
+    const agent = new Agent(
+      provider,
+      createEchoRegistry(),
+      {
+        maxSteps: 5,
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    const result = await agent.run(
+      "Call echo and report its result.",
+    );
+
+    expect(result.status).toBe("completed");
+
+    expect(events.map((event) => event.type)).toEqual([
+      "run_started",
+      "model_request",
+      "model_response",
+      "tool_started",
+      "tool_finished",
+      "model_request",
+      "model_response",
+      "run_finished",
+    ]);
+
+    const toolFinished = events.find(
+      (event) => event.type === "tool_finished",
+    );
+
+    expect(toolFinished?.type).toBe("tool_finished");
+
+    if (toolFinished?.type === "tool_finished") {
+      expect(toolFinished.ok).toBe(true);
+      expect(toolFinished.resultLength).toBe(5);
+    }
+  });
+
 });

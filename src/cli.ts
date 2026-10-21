@@ -1,4 +1,7 @@
-import { Agent } from "./agent/agent.js";
+import {
+  Agent,
+  type AgentEvent,
+} from "./agent/agent.js";
 import {
   OpenAICompatibleProvider,
 } from "./model/http-provider.js";
@@ -92,6 +95,66 @@ async function main(): Promise<void> {
       "Do not modify test files unless the user explicitly asks. " +
       "Report validation results based on actual tool output."
     ].join(" "),
+    
+    onEvent: (event: AgentEvent) => {
+      switch (event.type) {
+        case "run_started":
+          console.log(
+            `\n[trace] run_started task_chars=${event.taskLength}`,
+          );
+          break;
+
+        case "model_request":
+          console.log(
+            `[trace] model_request step=${event.step} ` +
+            `messages=${event.messageCount} ` +
+            `tools=${event.toolCount}`,
+          );
+          break;
+
+        case "model_response": {
+          const names = event.toolCalls
+            .map((call) => call.name)
+            .join(", ");
+
+          console.log(
+            `[trace] model_response step=${event.step} ` +
+            `tool_calls=${names || "none"} ` +
+            `has_text=${event.hasText}`,
+          );
+          break;
+        }
+
+        case "model_error":
+          console.error(
+            `[trace] model_error step=${event.step}: ${event.message}`,
+          );
+          break;
+
+        case "tool_started":
+          console.log(
+            `[trace] tool_started step=${event.step} ` +
+            `name=${event.toolName} call=${event.callId}`,
+          );
+          break;
+
+        case "tool_finished":
+          console.log(
+            `[trace] tool_finished name=${event.toolName} ` +
+            `ok=${event.ok} duration_ms=${event.durationMs} ` +
+            `result_chars=${event.resultLength}`,
+          );
+          break;
+
+        case "run_finished":
+          console.log(
+            `[trace] run_finished status=${event.status} ` +
+            `steps=${event.steps}`,
+          );
+          break;
+      }
+    },
+
   });
 
   const task =
