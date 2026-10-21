@@ -16,9 +16,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/cli.ts",
+    "dev": "node --env-file=.env --import tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "trace": "node --import tsx src/trace-cli.ts"
   }
 }
