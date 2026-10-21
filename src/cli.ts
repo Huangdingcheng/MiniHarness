@@ -84,6 +84,13 @@ async function main(): Promise<void> {
       "Never claim a check passed unless its actual output confirms success. " +
       "Do not attempt arbitrary shell commands.",
       "Give a concise, evidence-based answer based on actual tool results.",
+      "When a validation check fails, inspect the actual output " +
+      "and identify the cause before editing. " +
+      "Make a targeted fix, then rerun the relevant check. " +
+      "Continue fixing failures until the check passes or " +
+      "the maximum step limit is reached. " +
+      "Do not modify test files unless the user explicitly asks. " +
+      "Report validation results based on actual tool output."
     ].join(" "),
   });
 
