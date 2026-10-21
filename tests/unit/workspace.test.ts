@@ -15,6 +15,7 @@ import path from "node:path";
 
 import {
   createSandboxWorkspace,
+  getWorkspaceBaselinePath,
 } from "../../src/runtime/workspace.js";
 
 describe("SandboxWorkspace", () => {
@@ -110,6 +111,42 @@ describe("SandboxWorkspace", () => {
 
     const sandbox =
       await createSandboxWorkspace(sourceRoot);
+        
+    const baselinePath = getWorkspaceBaselinePath(
+      sandbox.workspaceRoot,
+    );
+
+    expect(existsSync(baselinePath)).toBe(true);
+
+    const baseline = JSON.parse(
+      await readFile(baselinePath, "utf8"),
+    ) as {
+      version: number;
+      sourceRoot: string;
+      workspaceRoot: string;
+      files: Record<
+        string,
+        { size: number; sha256: string }
+      >;
+    };
+
+    expect(baseline.version).toBe(1);
+
+    expect(baseline.sourceRoot).toBe(
+      sandbox.sourceRoot,
+    );
+
+    expect(baseline.workspaceRoot).toBe(
+      sandbox.workspaceRoot,
+    );
+
+    expect(
+      baseline.files["src/index.ts"]?.sha256,
+    ).toMatch(/^[a-f0-9]{64}$/);
+
+    expect(
+      baseline.files[".env"],
+    ).toBeUndefined();
 
     try {
       expect(
@@ -176,6 +213,10 @@ describe("SandboxWorkspace", () => {
 
       // cleanup 应删除副本。
       await sandbox.cleanup();
+
+      await expect(
+        access(baselinePath),
+      ).rejects.toThrow();
 
       await expect(
         access(sandbox.workspaceRoot),

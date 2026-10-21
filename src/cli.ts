@@ -1,3 +1,15 @@
+import os from "node:os";
+import path from "node:path";
+import { realpath } from "node:fs/promises";
+
+import {
+  getWorkspaceChanges,
+} from "./runtime/diff.js";
+
+import {
+  renderWorkspaceChanges,
+} from "./runtime/diff-display.js";
+
 import {
   createSandboxWorkspace,
 } from "./runtime/workspace.js";
@@ -163,7 +175,83 @@ async function authorizeToolCall(
   }
 }
 
+async function showWorkspaceDiff(
+  workspaceArgument: string,
+): Promise<void> {
+  // 只允许查看 MiniHarness 创建的临时工作区，
+  // 不允许通过 --diff 任意指定其他目录。
+  const sandboxBase = await realpath(
+    path.join(
+      os.tmpdir(),
+      "miniharness-sandboxes",
+    ),
+  );
+
+  const workspaceRoot = await realpath(
+    workspaceArgument,
+  );
+
+  const relative = path.relative(
+    sandboxBase,
+    workspaceRoot,
+  );
+
+  const isDirectSandboxChild =
+    relative !== "" &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative) &&
+    !relative.includes(path.sep) &&
+    path.basename(workspaceRoot).startsWith("run-");
+
+  if (!isDirectSandboxChild) {
+    throw new Error(
+      "The specified directory is not a valid MiniHarness sandbox.",
+    );
+  }
+
+  // 必须从原始项目根目录运行 CLI。
+  const sourceRoot = await realpath(
+    process.cwd(),
+  );
+
+  const changes = await getWorkspaceChanges(
+    sourceRoot,
+    workspaceRoot,
+  );
+
+  const report = await renderWorkspaceChanges(
+    sourceRoot,
+    workspaceRoot,
+    changes,
+  );
+
+  console.log("\n=== Workspace Diff ===");
+  console.log(`Source: ${sourceRoot}`);
+  console.log(`Workspace: ${workspaceRoot}`);
+  console.log("");
+  console.log(report);
+}
+
 async function main(): Promise<void> {
+  const cliArgs = process.argv
+    .slice(2)
+    .filter((arg) => arg !== "--");
+
+  // 差异查看模式：不创建新的沙箱，也不调用模型。
+  if (cliArgs[0] === "--diff") {
+    const workspaceArgument = cliArgs[1];
+
+    if (!workspaceArgument) {
+      throw new Error(
+        'Usage: pnpm dev -- --diff "<workspace-path>"',
+      );
+    }
+
+    await showWorkspaceDiff(workspaceArgument);
+    return;
+  }
+
   const apiKey = process.env.LLM_API_KEY?.trim();
   const baseURL = process.env.LLM_BASE_URL?.trim();
   const model = process.env.LLM_MODEL?.trim();
@@ -342,7 +430,7 @@ async function main(): Promise<void> {
   });
 
   const task =
-    process.argv.slice(2).join(" ").trim() ||
+    cliArgs.join(" ").trim() ||
     "Inspect src/agent/agent.ts using read_file. " +
       "Explain how the Agent Loop works, including model calls, " +
       "tool execution, message history, and stopping conditions.";
