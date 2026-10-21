@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+coverage/
+
+# Secrets and local environment
+.env
+
+# Local Agent execution traces
+.miniharness/

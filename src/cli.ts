@@ -1,4 +1,7 @@
 import {
+  createTraceWriter,
+} from "./observability/trace-writer.js";
+import {
   Agent,
   type AgentEvent,
 } from "./agent/agent.js";
@@ -25,6 +28,10 @@ async function main(): Promise<void> {
 
   // The current working directory is the workspace boundary.
   const workspaceRoot = process.cwd();
+
+  const traceWriter = createTraceWriter(workspaceRoot);
+
+  console.log(`[trace file] ${traceWriter.filePath}`);
 
   const registry = new ToolRegistry();
 
@@ -97,6 +104,17 @@ async function main(): Promise<void> {
     ].join(" "),
     
     onEvent: (event: AgentEvent) => {
+      try {
+        traceWriter.write(event);
+      } catch (error) {
+        const reason =
+          error instanceof Error
+            ? error.message
+            : String(error);
+
+        console.error(`[trace persistence error] ${reason}`);
+      }
+      
       switch (event.type) {
         case "run_started":
           console.log(
