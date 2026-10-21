@@ -102,4 +102,43 @@ describe("FileSystemTools", () => {
       ),
     ).rejects.toThrow("Access to this path is blocked.");
   });
+
+  
+it("searches files and reports line numbers", async () => {
+  const registry = await setup();
+
+  const output = await registry.execute(
+    "search_files",
+    JSON.stringify({
+      query: "answer",
+      path: "src",
+    }),
+  );
+
+  const normalized = output.replaceAll("\\", "/");
+
+  expect(normalized).toContain(
+    "example.ts:1: export const answer = 42;",
+  );
+
+  expect(output).toContain("Files scanned:");
+  expect(output).toContain("Matches: 1");
+});
+
+it("does not expose secrets from blocked files", async () => {
+  const registry = await setup();
+
+  const output = await registry.execute(
+    "search_files",
+    JSON.stringify({
+      query: "LLM_API_KEY",
+      path: ".",
+    }),
+  );
+
+  expect(output).not.toContain("secret-test-value");
+  expect(output).not.toContain(".env:");
+  expect(output).toContain("No matches found.");
+});
+
 });
